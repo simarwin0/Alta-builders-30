@@ -83,7 +83,7 @@ export default function NotificationBell() {
   return (
     <div className="notification-wrap">
       <button type="button" className="icon-button notification-trigger" aria-label={`Notifications, ${unread} unread`} aria-expanded={open} onClick={() => { setOpen((value) => !value); if (!open) void refresh(); }}>
-        ♧{unread > 0 && <span className="notification-count">{unread > 99 ? "99+" : unread}</span>}
+        🔔{unread > 0 && <span className="notification-count">{unread > 99 ? "99+" : unread}</span>}
       </button>
       {open && <section className="notification-popover" aria-label="Notifications">
         <header className="notification-heading"><div><strong>Notifications</strong><small>{unread} unread</small></div><button type="button" className="text-action" onClick={() => void markAllRead()} disabled={!unread}>Mark all read</button></header>
