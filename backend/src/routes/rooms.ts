@@ -17,6 +17,7 @@ import {
   addMembersSchema, createRoomSchema, dmSchema, mutedSchema, objectId, roleSchema, rotationSchema, updateRoomSchema,
 } from "../validation/rooms.js";
 import { sendMessageEventSchema } from "../validation/socket.js";
+import { notifyRoomMembers } from "../services/notifications.js";
 
 export const roomsRouter = Router();
 roomsRouter.use(requireAuth);
