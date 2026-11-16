@@ -13,6 +13,9 @@ const schema = z.object({
   ADMIN_BOOTSTRAP_TOKEN: z.string().min(40).max(200).optional(),
   BCRYPT_ROUNDS: z.coerce.number().int().min(4).max(15).default(12),
   TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
+  VAPID_PUBLIC_KEY: z.string().min(40).max(200).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(40).max(200).optional(),
+  VAPID_SUBJECT: z.string().url().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -61,4 +64,7 @@ export const config = {
   adminBootstrapToken: env.ADMIN_BOOTSTRAP_TOKEN ?? null,
   bcryptRounds: env.BCRYPT_ROUNDS,
   trustProxy: env.TRUST_PROXY,
+  vapidPublicKey: env.VAPID_PUBLIC_KEY ?? null,
+  vapidPrivateKey: env.VAPID_PRIVATE_KEY ?? null,
+  vapidSubject: env.VAPID_SUBJECT ?? null,
 };
