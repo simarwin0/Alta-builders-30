@@ -383,7 +383,15 @@ export default function ChatRoomPage() {
       {error && <p className="error" role="alert">{error}</p>}
       <section className="messages">
         <button className="link" onClick={loadOlder}>Load older messages</button>
-        {messages.map((m) => <div key={m.id} className="bubble"><small className="muted">{m.sender_name}</small><p>{m.display_content ?? "Encrypted message"}</p></div>)}
+        {messages.map((m) => {
+          const isMine = Boolean(room?.my_user_id && m.sender_id === room.my_user_id);
+          return (
+            <div key={m.id} className={`bubble ${isMine ? "bubble-mine" : "bubble-theirs"}`}>
+              <small className="muted">{isMine ? "You" : (m.sender_name ?? "Member")}</small>
+              <p>{m.display_content ?? "Encrypted message"}</p>
+            </div>
+          );
+        })}
         <div ref={bottom} />
       </section>
       <form className="composer" onSubmit={send}>
