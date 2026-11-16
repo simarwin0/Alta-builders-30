@@ -48,14 +48,14 @@ export default function NotificationBell() {
       if (permission !== "granted") throw new Error("Allow notifications in your browser settings to continue.");
       const registration = await navigator.serviceWorker.register("/sw.js");
       const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodeKey(config.publicKey) });
-      await api("/notifications/push/subscriptions", { method: "POST", body: JSON.stringify(subscription.toJSON()) });
+      await api("/notifications/push/subscriptions", { method: "POST", body: JSON.stringify({ endpoint: subscription.endpoint, keys: subscription.toJSON().keys }) });
       setPushEnabled(true);
     } catch (error) {
       window.alert((error as Error).message || "Could not enable push notifications.");
     } finally { setBusy(false); }
   }
 
-  async function markAllRead() {
+  async function disablePush() {\n    if (busy || !("serviceWorker" in navigator)) return;\n    setBusy(true);\n    try {\n      const registration = await navigator.serviceWorker.getRegistration("/");\n      const subscription = await registration?.pushManager.getSubscription();\n      if (subscription) {\n        await api("/notifications/push/subscriptions", { method: "DELETE", body: JSON.stringify({ endpoint: subscription.endpoint }) });\n        await subscription.unsubscribe();\n      }\n      setPushEnabled(false);\n    } catch (error) { window.alert((error as Error).message || "Could not disable push notifications."); }\n    finally { setBusy(false); }\n  }\n\n  async function markAllRead() {
     await api("/notifications/read-all", { method: "PATCH" });
     await refresh();
   }
@@ -76,7 +76,7 @@ export default function NotificationBell() {
           {items.length === 0 ? <p className="notification-empty">You're all caught up.</p> : items.map((item) => (
             <article className={`notification-item ${item.read_at ? "" : "unread"}`} key={item.id}>
               <div className="notification-copy"><strong>{item.title}</strong><p>{item.body}</p><small>{new Date(item.created_at).toLocaleString()}</small></div>
-              {item.room_id ? <Link to={`/rooms/${item.room_id}`} onClick={() => setOpen(false)}>Open</Link> : null}
+              {item.room_id ? <Link to={`/rooms/${item.room_id}`} onClick={() => { void api(`/notifications/${item.id}/read`, { method: "PATCH" }).then(refresh); setOpen(false); }}>Open</Link> : null}
               <button type="button" className="notification-dismiss" aria-label="Dismiss notification" onClick={() => void dismiss(item.id)}>×</button>
             </article>
           ))}
@@ -84,7 +84,7 @@ export default function NotificationBell() {
         <footer className="notification-footer">
           <span>{pushEnabled ? "Desktop push enabled" : "Desktop push is off"}</span>
           {!pushEnabled && <button type="button" className="text-action" disabled={busy} onClick={() => void enablePush()}>{busy ? "Enabling…" : "Enable desktop alerts"}</button>}
-          {pushEnabled && <span className="muted">Manage permission in browser settings</span>}
+          {pushEnabled && <button type="button" className="text-action" disabled={busy} onClick={() => void disablePush()}>Disable desktop alerts</button>}
         </footer>
       </section>}
     </div>
