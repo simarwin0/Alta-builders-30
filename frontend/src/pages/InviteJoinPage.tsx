@@ -23,14 +23,34 @@ export default function InviteJoinPage() {
   const [status, setStatus] = useState("");
 
   useEffect(() => {
-    void api<InviteInfo>(`/invitations/${encodeURIComponent(token)}`)
-      .then(async (data) => {
+    let active = true;
+    let initialLoad = true;
+    const refreshInvite = async () => {
+      try {
+        const data = await api<InviteInfo>(`/invitations/${encodeURIComponent(token)}`);
         const displayName = await decryptInvitationLabel(token, data.displayName);
+        if (!active) return;
         setInvite({ ...data, displayName });
-        if (data.alreadyMember) setStatus("You are already a member of this group.");
+        setError("");
+        if (data.alreadyMember) setStatus("You are now a member of this group.");
         else if (data.requested) setStatus("Your request is waiting for an owner or admin to approve it.");
-      })
-      .catch((err) => setError((err as Error).message));
+        else setStatus("");
+      } catch (err) {
+        if (active && initialLoad) setError((err as Error).message);
+      } finally {
+        initialLoad = false;
+      }
+    };
+    void refreshInvite();
+    // Keep a pending invitation in sync so an approved member can open the
+    // group without reloading the page or submitting another join request.
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refreshInvite();
+    }, 3500);
+    return () => {
+      active = false;
+      window.clearInterval(poll);
+    };
   }, [token]);
 
   async function join() {
