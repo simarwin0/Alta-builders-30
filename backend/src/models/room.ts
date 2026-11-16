@@ -92,7 +92,7 @@ export async function getRoomDetails(roomId: string, viewerId: string) {
   const members = room.members.map((m) => {
     const u: any = byId.get(idStr(m.user)) ?? {};
     return { user_id: idStr(m.user), username: u.username as string, status: (u.status ?? "offline") as "online" | "away" | "offline", role: m.role, joined_at: m.joinedAt };
-  }).sort((a, b) => roleOrder[a.role] - roleOrder[b.role] || +new Date(a.joined_at) - +new Date(b.joined_at));
+  }).sort((a, b) => roleOrder[a.role] - roleOrder[b.role] || +new Date(a.joined_at) - +new Date(b.joined_at) || a.username.localeCompare(b.username));
   const directPeer = room.type === "direct"
     ? members.find((member) => member.user_id !== viewerId)?.username ?? null
     : null;
