@@ -21,7 +21,9 @@ export default function AuthPage() {
   const nav = useNavigate();
   const location = useLocation();
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem(REMEMBER_DEVICE_KEY) === "1");
+  // The remember-device choice is offered once at signup, then reused silently
+  // on this device for future logins.
+  const [rememberMe, setRememberMe] = useState(false);
   const [form, setForm] = useState(() => ({
     username: localStorage.getItem(SAVED_USERNAME_KEY) ?? "",
     email: "",
@@ -35,6 +37,9 @@ export default function AuthPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setError(""); setBusy(true);
+    const rememberThisDevice = mode === "signup"
+      ? rememberMe
+      : localStorage.getItem(REMEMBER_DEVICE_KEY) === "1";
     try {
       if (mode === "signup") {
         const passwordError = validateSignupPassword(form.password);
@@ -47,21 +52,21 @@ export default function AuthPage() {
         });
         const response = await api<{ user: { id: string; username: string } }>("/auth/signup", {
           method: "POST",
-          body: JSON.stringify({ username: form.username, password: form.password, rememberMe, ...(form.adminBootstrapToken.trim() ? { adminBootstrapToken: form.adminBootstrapToken.trim() } : {}), ...bundle }),
+          body: JSON.stringify({ username: form.username, password: form.password, rememberMe: rememberThisDevice, ...(form.adminBootstrapToken.trim() ? { adminBootstrapToken: form.adminBootstrapToken.trim() } : {}), ...bundle }),
         });
         await unlockAccount(response.user.id, form.password, { cryptoSalt: bundle.cryptoSalt, cryptoPublicKey: bundle.cryptoPublicKey, wrappedPrivateKey: bundle.wrappedPrivateKey });
       } else {
-        const response = await api<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify({ username: form.username, password: form.password, rememberMe }) });
+        const response = await api<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify({ username: form.username, password: form.password, rememberMe: rememberThisDevice }) });
         await unlockAccount(response.user.id, form.password, { cryptoSalt: response.user.crypto_salt, cryptoPublicKey: response.user.crypto_public_key, wrappedPrivateKey: response.user.wrapped_private_key });
       }
-      if (rememberMe) {
+      if (rememberThisDevice) {
         localStorage.setItem(SAVED_USERNAME_KEY, form.username.trim());
         localStorage.setItem(REMEMBER_DEVICE_KEY, "1");
       } else {
         localStorage.removeItem(SAVED_USERNAME_KEY);
         localStorage.removeItem(REMEMBER_DEVICE_KEY);
       }
-      markAuthenticated(rememberMe);
+      markAuthenticated(rememberThisDevice);
       setForm((prev) => ({ ...prev, password: "", adminBootstrapToken: "" }));
       const destination = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from; nav(destination?.pathname ? destination.pathname + (destination.search ?? "") + (destination.hash ?? "") : "/");
     } catch (err) {
@@ -83,13 +88,15 @@ export default function AuthPage() {
         {mode === "login" && <input name="username" autoComplete="username" placeholder="Username" value={form.username} onChange={set("username")} required />}
         <input name="password" type="password" placeholder="Password" value={form.password} onChange={set("password")} required minLength={mode === "signup" ? 12 : undefined} autoComplete={mode === "login" ? "current-password" : "new-password"} />
         {mode === "signup" && <small className="muted">Use at least 12 characters, including one letter and one number (maximum 72 UTF-8 bytes). Your password protects your private encryption key and cannot be recovered.</small>}
-        <label className="remember-row">
-          <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
-          <span>
-            <strong>Remember this device</strong>
-            <small>Keep the secure sign-in session for up to 30 days. You’ll still need your password to unlock encryption keys.</small>
-          </span>
-        </label>
+        {mode === "signup" && (
+          <label className="remember-row">
+            <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
+            <span>
+              <strong>Remember this device</strong>
+              <small>Choose this when creating your account. Alta Chat will remember your username and keep this device's secure session for up to 30 days. Your password is never saved by Alta Chat.</small>
+            </span>
+          </label>
+        )}
         {error && <p className="error" role="alert">{error}</p>}
         <button type="submit" disabled={busy}>{busy ? "Securing account…" : mode === "login" ? "Log in" : "Create encrypted account"}</button>
       </form>
