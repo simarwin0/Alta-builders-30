@@ -809,3 +809,24 @@ button, .profile-chip, .app-nav a { min-height:44px; }
     scroll-behavior: auto !important;
   }
 }
+
+
+/* Message ownership is relative to the signed-in viewer, never message order. */
+.messages .bubble {
+  align-self: flex-start;
+  max-width: min(78%, 680px);
+  overflow-wrap: anywhere;
+}
+.messages .bubble-mine {
+  align-self: flex-end;
+  border-color: rgba(119, 91, 255, .2);
+  border-radius: 16px 16px 4px 16px;
+  background: linear-gradient(145deg, #f0edff 0%, #e8f2ff 100%);
+}
+.messages .bubble-theirs {
+  align-self: flex-start;
+  border-radius: 16px 16px 16px 4px;
+  background: #fff;
+}
+.messages .bubble-mine > small { color: #6f58db; }
+.messages .bubble-theirs > small { color: #77819b; }
