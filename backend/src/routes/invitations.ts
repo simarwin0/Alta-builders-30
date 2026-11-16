@@ -97,7 +97,7 @@ invitationsRouter.post("/:token/join", async (req: AuthedRequest, res) => {
     );
     if (requested.modifiedCount) {
       const admins = room.members.filter((member: any) => ["owner", "admin"].includes(member.role)).map((member: any) => String(member.user));
-      await Promise.all(admins.map((userId: string) => createNotification({ userId, type: "join_request", title: "Group join request", body: "Someone requested to join your encrypted group.", roomId: String(invite.room) })));
+      void Promise.all(admins.map((userId: string) => createNotification({ userId, type: "join_request", title: "Group join request", body: "Someone requested to join your encrypted group.", roomId: String(invite.room) }))).catch(() => undefined);
     }
     return res.status(202).json({ status: "requested" });
   }
