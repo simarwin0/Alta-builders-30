@@ -14,7 +14,11 @@ function getRoomDisplayName(details: RoomDetails, encryptedName: string): string
   return encryptedName || "Encrypted group";
 }
 
-async function decryptMessage(roomId: string, message: Message): Promise<Message> {
+async function decryptMessage(
+  roomId: string,
+  message: Message,
+  roomType?: RoomDetails["type"],
+): Promise<Message> {
   if (message.type === "system") return { ...message, display_content: message.content ?? "System notice" };
   if (!message.encrypted_content || !message.encrypted_iv || !message.encryption_version) {
     return { ...message, display_content: "Encrypted message unavailable" };
@@ -26,7 +30,10 @@ async function decryptMessage(roomId: string, message: Message): Promise<Message
     }, message.encryption_version);
     return { ...message, display_content: text };
   } catch {
-    return { ...message, display_content: "This message is encrypted with a key unavailable on this device" };
+    const unavailable = roomType === "group"
+      ? "This message uses an earlier group key that is not available on this account. New members can read messages sent after they joined."
+      : "This message is encrypted with a key unavailable on this device.";
+    return { ...message, display_content: unavailable };
   }
 }
 
@@ -82,7 +89,7 @@ export default function ChatRoomPage() {
         ? ""
         : (await decryptRoomMetadata(roomId, details.encrypted_metadata, details.current_key_version)).name;
       const encryptedMessages = await api<Message[]>(`/rooms/${roomId}/messages`);
-      const readable = await Promise.all(encryptedMessages.map((message) => decryptMessage(roomId, message)));
+      const readable = await Promise.all(encryptedMessages.map((message) => decryptMessage(roomId, message, details.type)));
       setRoom(details);
       setRoomName(getRoomDisplayName(details, encryptedName));
       setKeyVersion(details.current_key_version);
@@ -133,7 +140,7 @@ export default function ChatRoomPage() {
         setKeyVersion(details.current_key_version);
 
         const latest = await api<Message[]>(`/rooms/${roomId}/messages?limit=30`);
-        const readable = await Promise.all(latest.map((message) => decryptMessage(roomId, message)));
+        const readable = await Promise.all(latest.map((message) => decryptMessage(roomId, message, details.type)));
         if (!active) return;
         setMessages((previous) => {
           const byId = new Map(previous.map((message) => [message.id, message]));
@@ -189,7 +196,7 @@ export default function ChatRoomPage() {
     if (!messages.length) return;
     try {
       const older = await api<Message[]>(`/rooms/${roomId}/messages?before=${messages[0].id}`);
-      const readable = await Promise.all(older.map((message) => decryptMessage(roomId, message)));
+      const readable = await Promise.all(older.map((message) => decryptMessage(roomId, message, room?.type)));
       setMessages((prev) => [...readable, ...prev]);
     } catch (err) { setError((err as Error).message); }
   }
@@ -237,7 +244,7 @@ export default function ChatRoomPage() {
         }
       }
       if (!saved) throw new Error("Your message could not be sent. Please try again.");
-      const readable = await decryptMessage(roomId, saved);
+      const readable = await decryptMessage(roomId, saved, room?.type);
       setMessages((previous) => [...previous.filter((message) => message.id !== readable.id), readable]);
       setText("");
       setError("");
