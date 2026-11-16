@@ -19,7 +19,6 @@ const pushSubscriptionSchema = new Schema({
     auth: { type: String, required: true, maxlength: 256 },
   },
 }, { timestamps: true });
-pushSubscriptionSchema.index({ user: 1 });
 
 export const NotificationModel = mongoose.models.Notification || mongoose.model("Notification", notificationSchema);
 export const PushSubscriptionModel = mongoose.models.PushSubscription || mongoose.model("PushSubscription", pushSubscriptionSchema);
