@@ -5,6 +5,7 @@ import { GroupInvitationModel, RoomModel, UserModel } from "../models/schemas.js
 import { memberJoined, postSystemMessage, roomChanged } from "../services/realtime.js";
 import { objectId, encryptedBlob, keyEnvelope } from "../validation/rooms.js";
 import { z } from "zod";
+import { createNotification } from "../services/notifications.js";
 
 export const invitationsRouter = Router();
 invitationsRouter.use(requireAuth);
@@ -90,10 +91,14 @@ invitationsRouter.post("/:token/join", async (req: AuthedRequest, res) => {
   if (room.members.some((m: any) => String(m.user) === req.userId)) return res.json({ status: "member" });
 
   if (invite.mode === "approval") {
-    await GroupInvitationModel.updateOne(
+    const requested = await GroupInvitationModel.updateOne(
       { _id: invite._id, revokedAt: null, expiresAt: { $gt: new Date() }, "requests.user": { $ne: req.userId } },
       { $push: { requests: { user: req.userId, requestedAt: new Date() } } },
     );
+    if (requested.modifiedCount) {
+      const admins = room.members.filter((member: any) => ["owner", "admin"].includes(member.role)).map((member: any) => String(member.user));
+      void Promise.all(admins.map((userId: string) => createNotification({ userId, type: "join_request", title: "Group join request", body: "Someone requested to join your encrypted group.", roomId: String(invite.room) }))).catch(() => undefined);
+    }
     return res.status(202).json({ status: "requested" });
   }
   const rotation = rotationSchema.safeParse(req.body);

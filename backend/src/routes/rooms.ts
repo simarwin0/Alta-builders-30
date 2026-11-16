@@ -17,6 +17,7 @@ import {
   addMembersSchema, createRoomSchema, dmSchema, mutedSchema, objectId, roleSchema, rotationSchema, updateRoomSchema,
 } from "../validation/rooms.js";
 import { sendMessageEventSchema } from "../validation/socket.js";
+import { notifyRoomMembers } from "../services/notifications.js";
 
 export const roomsRouter = Router();
 roomsRouter.use(requireAuth);
@@ -212,6 +213,7 @@ roomsRouter.post("/:roomId/messages", loadMembership, async (req: RoomRequest, r
   if (!currentRoom || currentRoom.currentKeyVersion !== keyVersion) return res.status(409).json({ error: "The room encryption key changed. Reload the room before sending." });
   const message = await createEncryptedMessage({ room: roomId, sender: req.userId!, encryptedContent, encryptedIv, keyVersion, replyTo: replyToId ?? null });
   await emitRoomEventToMembers(roomId, "message:new", message);
+  void notifyRoomMembers(roomId, req.userId!).catch(() => undefined);
   res.status(201).json(message);
 });
 
