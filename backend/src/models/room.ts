@@ -93,8 +93,12 @@ export async function getRoomDetails(roomId: string, viewerId: string) {
     const u: any = byId.get(idStr(m.user)) ?? {};
     return { user_id: idStr(m.user), username: u.username as string, status: (u.status ?? "offline") as "online" | "away" | "offline", role: m.role, joined_at: m.joinedAt };
   }).sort((a, b) => roleOrder[a.role] - roleOrder[b.role] || +new Date(a.joined_at) - +new Date(b.joined_at));
+  const directPeer = room.type === "direct"
+    ? members.find((member) => member.user_id !== viewerId)?.username ?? null
+    : null;
   return {
     ...toRoom(room), members,
+    direct_peer_name: directPeer,
     key_envelopes: room.keyEnvelopes?.filter((item) => idStr(item.user) === viewerId).map((item) => ({ key_version: item.keyVersion, wrapped_key: item.wrappedKey })) ?? [],
     current_key_version: room.currentKeyVersion,
   };
