@@ -58,40 +58,66 @@ export default function InviteJoinPage() {
     setBusy(true);
     setError("");
     try {
-      if (invite.mode === "approval") {
-        const result = await api<{ status: string }>(`/invitations/${encodeURIComponent(token)}/join`, { method: "POST", body: JSON.stringify({}) });
-        setStatus(result.status === "member" ? "You are already a member." : "Request sent. You'll be able to open the group after an admin approves you.");
+      // Refresh membership and key-version data immediately before joining.
+      // This prevents a stale invitation page from building envelopes for an
+      // out-of-date member list when the group changed after the link opened.
+      const latest = await api<Omit<InviteInfo, "displayName"> & { displayName: string }>(
+        `/invitations/${encodeURIComponent(token)}`,
+      );
+      const latestDisplayName = await decryptInvitationLabel(token, latest.displayName);
+      const currentInvite: InviteInfo = { ...latest, displayName: latestDisplayName };
+      setInvite(currentInvite);
+
+      if (currentInvite.alreadyMember) {
+        navigate(`/rooms/${currentInvite.roomId}`);
         return;
       }
+      if (currentInvite.mode === "approval") {
+        const result = await api<{ status: string }>(
+          `/invitations/${encodeURIComponent(token)}/join`,
+          { method: "POST", body: JSON.stringify({}) },
+        );
+        setStatus(result.status === "member"
+          ? "You are already a member."
+          : "Request sent. You'll be able to open the group after an admin approves you.");
+        return;
+      }
+
       const userId = getCurrentUserId();
       if (!userId) throw new Error("Your account encryption is locked. Log in again before joining.");
-      const recipients = [...new Set([...invite.memberIds, userId])];
+      const recipients = [...new Set([...currentInvite.memberIds, userId])];
       const keys = await Promise.all(recipients.map(async (id) => ({
         userId: id,
         publicKey: (await api<PublicKeyResponse>(`/users/${id}/crypto-key`)).public_key,
       })));
       const { raw, key } = await createRoomKey();
       try {
-        const encryptedMetadata = await encryptRoomMetadataWithKey(key, { name: invite.displayName });
+        const encryptedMetadata = await encryptRoomMetadataWithKey(key, { name: currentInvite.displayName });
         const keyEnvelopes = await Promise.all(keys.map(async (entry) => ({
           userId: entry.userId,
           wrappedKey: await wrapRoomKeyForUser(raw, entry.publicKey),
         })));
-        const result = await api<{ status?: string; keyVersion?: number }>(`/invitations/${encodeURIComponent(token)}/join`, {
-          method: "POST",
-          body: JSON.stringify({ encryptedMetadata, keyEnvelopes }),
-        });
+        const result = await api<{ status?: string; keyVersion?: number }>(
+          `/invitations/${encodeURIComponent(token)}/join`,
+          {
+            method: "POST",
+            body: JSON.stringify({ encryptedMetadata, keyEnvelopes }),
+          },
+        );
         if (result.status === "member") {
-          navigate(`/rooms/${invite.roomId}`);
+          navigate(`/rooms/${currentInvite.roomId}`);
           return;
         }
-        cacheRoomKey(invite.roomId, result.keyVersion ?? invite.currentKeyVersion + 1, key);
-        navigate(`/rooms/${invite.roomId}`);
+        cacheRoomKey(currentInvite.roomId, result.keyVersion ?? currentInvite.currentKeyVersion + 1, key);
+        navigate(`/rooms/${currentInvite.roomId}`);
       } finally {
         raw.fill(0);
       }
     } catch (err) {
-      setError((err as Error).message);
+      const message = (err as Error).message;
+      setError(message.includes("Group membership changed")
+        ? "This group changed while you were joining. Please tap Join again to refresh its member list and retry."
+        : message);
     } finally {
       setBusy(false);
     }
