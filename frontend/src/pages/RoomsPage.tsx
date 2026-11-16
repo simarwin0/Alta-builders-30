@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { cacheRoomKey, clearRoomKeyCache, createRoomKey, decryptRoomMetadata, encryptRoomMetadataWithKey, getCurrentUserId, unwrapRoomKey, wrapRoomKeyForUser } from "../crypto";
 import type { Room } from "../types";
+import NotificationBell from "../components/NotificationBell";
 
 type PublicKeyResponse = { public_key: JsonWebKey };
 type UserLite = { id: string; username: string; status: "online" | "away" | "offline" };
