@@ -55,7 +55,22 @@ export default function NotificationBell() {
     } finally { setBusy(false); }
   }
 
-  async function disablePush() {\n    if (busy || !("serviceWorker" in navigator)) return;\n    setBusy(true);\n    try {\n      const registration = await navigator.serviceWorker.getRegistration("/");\n      const subscription = await registration?.pushManager.getSubscription();\n      if (subscription) {\n        await api("/notifications/push/subscriptions", { method: "DELETE", body: JSON.stringify({ endpoint: subscription.endpoint }) });\n        await subscription.unsubscribe();\n      }\n      setPushEnabled(false);\n    } catch (error) { window.alert((error as Error).message || "Could not disable push notifications."); }\n    finally { setBusy(false); }\n  }\n\n  async function markAllRead() {
+  async function disablePush() {
+    if (busy || !("serviceWorker" in navigator)) return;
+    setBusy(true);
+    try {
+      const registration = await navigator.serviceWorker.getRegistration("/");
+      const subscription = await registration?.pushManager.getSubscription();
+      if (subscription) {
+        await api("/notifications/push/subscriptions", { method: "DELETE", body: JSON.stringify({ endpoint: subscription.endpoint }) });
+        await subscription.unsubscribe();
+      }
+      setPushEnabled(false);
+    } catch (error) { window.alert((error as Error).message || "Could not disable push notifications."); }
+    finally { setBusy(false); }
+  }
+
+  async function markAllRead() {
     await api("/notifications/read-all", { method: "PATCH" });
     await refresh();
   }
