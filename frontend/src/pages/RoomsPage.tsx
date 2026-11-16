@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { cacheRoomKey, clearRoomKeyCache, createRoomKey, decryptRoomMetadata, encryptRoomMetadataWithKey, getCurrentUserId, unwrapRoomKey, wrapRoomKeyForUser } from "../crypto";
@@ -21,8 +21,11 @@ export default function RoomsPage() {
   const [groupName, setGroupName] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const loadInFlight = useRef(false);
 
   const load = async () => {
+    if (loadInFlight.current) return;
+    loadInFlight.current = true;
     try {
       const records = await api<Room[]>("/rooms");
       const unlocked = await Promise.all(records.map(async (room) => {
@@ -40,6 +43,7 @@ export default function RoomsPage() {
       setRooms(unlocked);
       setError("");
     } catch (err) { setError((err as Error).message); }
+    finally { loadInFlight.current = false; }
   };
 
   useEffect(() => {
@@ -49,10 +53,18 @@ export default function RoomsPage() {
     // Keep the inbox in sync over the same-origin authenticated HTTP API.
     // This avoids a second, cross-site Socket.IO session that can fail when
     // browsers block third-party cookies.
+    // Reduce background API traffic and catch up immediately when the user returns.
     const refresh = window.setInterval(() => {
       if (document.visibilityState === "visible") void load();
-    }, 5000);
-    return () => window.clearInterval(refresh);
+    }, 15000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearInterval(refresh);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {

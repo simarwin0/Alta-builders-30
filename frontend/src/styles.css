@@ -987,3 +987,99 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .remember-row span { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
 .remember-row strong { color: var(--ink); font-size: 13px; }
 .remember-row small { color: var(--muted); font-size: 11px; line-height: 1.45; }
+
+
+
+/* Device performance + responsive refinements */
+html { scroll-behavior: smooth; }
+body { overflow-x: hidden; overscroll-behavior-y: none; }
+.messages, .conversation-list, .member-picker, .group-members-list, .group-search-results {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+.conversation-row, .person-result, .member-choice { min-height: 56px; }
+button, .icon-button, .rail-link, .app-nav a { touch-action: manipulation; }
+@media (max-width: 900px) {
+  .desktop-inbox-panel { min-height: 100dvh; }
+  .inbox-topbar { gap: 12px; }
+  .top-actions { gap: 8px; }
+  .inbox-search { min-height: 48px; }
+  .conversation-row { min-height: 68px; }
+  .conversation-avatar { width: 48px; height: 48px; }
+}
+@media (max-width: 640px) {
+  html, body, #root { min-height: 100%; }
+  .inbox-screen { min-height: 100svh !important; min-height: 100dvh !important; }
+  .desktop-inbox-panel {
+    min-height: 100svh; min-height: 100dvh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .desktop-inbox-panel .inbox-topbar {
+    padding: max(18px,env(safe-area-inset-top)) 16px 16px;
+  }
+  .desktop-inbox-panel .inbox-topbar h1 { font-size: clamp(27px,8vw,34px); }
+  .desktop-inbox-panel .top-actions { gap: 6px; }
+  .desktop-inbox-panel .icon-button {
+    width: 42px; height: 42px; min-width: 42px; padding: 0;
+    border-radius: 13px;
+  }
+  .desktop-inbox-panel .profile-chip { padding: 10px 11px; font-size: 11px; }
+  .desktop-inbox-panel .inbox-search { margin: 0 14px 20px; }
+  .desktop-inbox-panel .inbox-section-head { margin: 0 16px; }
+  .desktop-inbox-panel .filter-tabs { padding: 11px 16px 15px; }
+  .desktop-inbox-panel .conversation-list { padding: 0 8px 16px; }
+  .desktop-inbox-panel .conversation-row {
+    min-height: 70px; gap: 11px; padding: 12px 10px; border-radius: 14px;
+  }
+  .desktop-inbox-panel .conversation-avatar { width: 46px; height: 46px; border-radius: 15px; }
+  .desktop-inbox-panel .conversation-title { font-size: 13px; }
+  .desktop-inbox-panel .conversation-preview { max-width: min(58vw,300px); font-size: 11px; }
+  .desktop-inbox-panel .conversation-meta { gap: 5px; font-size: 9px; }
+  .app-nav {
+    position: sticky; bottom: 0; z-index: 5;
+    padding: 10px 12px max(10px,env(safe-area-inset-bottom));
+    background: rgba(255,255,255,.96); backdrop-filter: blur(14px);
+  }
+  .app-nav a { min-width: 64px; min-height: 44px; justify-content: center; }
+  .chat.screen { width: 100%; height: 100svh; height: 100dvh; min-height: 0; margin: 0; border-radius: 0; }
+  .chat-room-bar {
+    min-height: 60px; padding: max(8px,env(safe-area-inset-top)) 12px 8px; gap: 10px;
+  }
+  .chat-room-heading { min-width: 0; }
+  .chat-room-heading strong { overflow: hidden; max-width: 54vw; text-overflow: ellipsis; white-space: nowrap; }
+  .group-info-trigger { min-height: 40px; padding: 8px 10px; font-size: 12px; }
+  .messages { min-height: 0; padding: 12px 12px 18px; gap: 9px; scroll-padding-bottom: 16px; }
+  .messages .bubble { max-width: 88%; padding: 9px 12px; }
+  .composer { flex: none; gap: 8px; padding: 9px 10px max(10px,env(safe-area-inset-bottom)); }
+  .composer input { min-height: 44px; padding: 11px 12px; font-size: 16px; }
+  .composer button { min-width: 64px; min-height: 44px; padding: 10px 13px; }
+  .auth {
+    width: 100%; min-height: 100svh; min-height: 100dvh;
+    margin: 0; border: 0; border-radius: 0;
+    padding: max(34px,env(safe-area-inset-top)) 22px max(24px,env(safe-area-inset-bottom));
+    overflow-y: auto;
+  }
+  .auth form { gap: 12px; }
+  .auth form input { min-height: 48px; font-size: 16px; }
+  .auth form button { min-height: 48px; }
+  .profile { padding-inline: 20px; }
+  .admin-stats { width: calc(100% - 32px); gap: 10px; }
+  .notification-popover {
+    top: max(70px,calc(env(safe-area-inset-top) + 62px));
+    right: 10px; width: min(380px,calc(100vw - 20px)); max-height: min(68dvh,520px);
+  }
+  .group-info-overlay, .modal-backdrop { align-items: flex-end; padding: 8px; }
+  .group-info-card, .group-modal {
+    width: 100%; max-height: min(88dvh,760px); border-radius: 20px 20px 14px 14px;
+    padding: 20px 16px max(18px,env(safe-area-inset-bottom));
+  }
+}
+@media (max-width: 380px) {
+  .desktop-inbox-panel .inbox-topbar h1 { font-size: 26px; }
+  .desktop-inbox-panel .profile-chip { display: none; }
+  .desktop-inbox-panel .top-actions { gap: 7px; }
+  .desktop-inbox-panel .conversation-meta time { display: none; }
+  .auth { padding-inline: 18px; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

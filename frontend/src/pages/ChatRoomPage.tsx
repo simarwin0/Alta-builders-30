@@ -158,18 +158,38 @@ export default function ChatRoomPage() {
       await loadRoom();
       if (!active) return;
       // Refresh membership and encryption envelopes along with the messages.
+      const connection = (navigator as Navigator & {
+        connection?: { saveData?: boolean; effectiveType?: string };
+      }).connection;
+      const isConstrainedNetwork = Boolean(
+        connection?.saveData || ["slow-2g", "2g"].includes(connection?.effectiveType ?? ""),
+      );
+      const refreshInterval = isConstrainedNetwork
+        ? 12000
+        : window.matchMedia("(max-width: 640px)").matches ? 7000 : 5000;
       poll = window.setInterval(() => {
         if (document.visibilityState === "visible") void refreshRoomAndMessages();
-      }, 2500);
+      }, refreshInterval);
     })();
+
+    const refreshWhenAvailable = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) {
+        void refreshRoomAndMessages();
+      }
+    };
+    document.addEventListener("visibilitychange", refreshWhenAvailable);
+    window.addEventListener("online", refreshWhenAvailable);
     return () => {
       active = false;
       if (poll) window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", refreshWhenAvailable);
+      window.removeEventListener("online", refreshWhenAvailable);
     };
   }, [roomId]);
 
   useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: "smooth" });
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    bottom.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
     const last = messages[messages.length - 1];
   }, [messages.length]);
 

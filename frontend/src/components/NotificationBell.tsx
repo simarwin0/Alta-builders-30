@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 
@@ -16,18 +16,31 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
+  const refreshInFlight = useRef(false);
 
   const refresh = useCallback(async () => {
+    if (refreshInFlight.current) return;
+    refreshInFlight.current = true;
     try {
       const result = await api<{ items: Notice[]; unread: number }>("/notifications");
       setItems(result.items); setUnread(result.unread);
     } catch { /* Session may have expired; the app's auth guard handles it. */ }
+    finally { refreshInFlight.current = false; }
   }, []);
 
   useEffect(() => {
     void refresh();
-    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 12000);
-    return () => window.clearInterval(timer);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void refresh();
+    }, 30000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [refresh]);
 
   useEffect(() => {
