@@ -251,21 +251,31 @@ export default function ChatRoomPage() {
     setSavingMembers(true);
     setError("");
     try {
-      // Rotate to a fresh room key. It is wrapped to every current and new
-      // member, so new members cannot decrypt messages sent before they joined.
-      const resultingIds = [...new Set([...room.members.map((member) => member.user_id), ...selectedIds])];
+      // Refresh members and the current key before creating the rotation. The
+      // owner/admin view may be behind another admin's recent membership change.
+      const latestRoom = await fetchLatestRoomWithCurrentKey();
+      const latestName = (await decryptRoomMetadata(
+        roomId,
+        latestRoom.encrypted_metadata,
+        latestRoom.current_key_version,
+      )).name;
+      setRoom(latestRoom);
+      setRoomName(latestName);
+
+      // A fresh key is wrapped to every current and newly selected member.
+      const resultingIds = [...new Set([...latestRoom.members.map((member) => member.user_id), ...selectedIds])];
       const publicKeys = await Promise.all(resultingIds.map(async (userId) => ({
         userId,
         publicKey: (await api<PublicKeyResponse>(`/users/${userId}/crypto-key`)).public_key,
       })));
       const { raw, key } = await createRoomKey();
-      const encryptedMetadata = await encryptRoomMetadataWithKey(key, { name: roomName });
+      const encryptedMetadata = await encryptRoomMetadataWithKey(key, { name: latestName });
       const keyEnvelopes = await Promise.all(publicKeys.map(async (entry) => ({
         userId: entry.userId,
         wrappedKey: await wrapRoomKeyForUser(raw, entry.publicKey),
       })));
       raw.fill(0);
-      const nextVersion = room.current_key_version + 1;
+      const nextVersion = latestRoom.current_key_version + 1;
       const result = await api<{ addedIds: string[] }>(`/rooms/${roomId}/members`, {
         method: "POST",
         body: JSON.stringify({ userIds: selectedIds, encryptedMetadata, keyEnvelopes }),
@@ -319,15 +329,25 @@ export default function ChatRoomPage() {
     if (!room || !canManageMembers || inviteBusy) return;
     setInviteBusy(true); setError("");
     try {
-      const recipientIds = [...new Set([...room.members.map((member) => member.user_id), userId])];
+      // Base approval on the newest room revision so the joining member and
+      // every currently active member receive envelopes for the same key.
+      const latestRoom = await fetchLatestRoomWithCurrentKey();
+      const latestName = (await decryptRoomMetadata(
+        roomId,
+        latestRoom.encrypted_metadata,
+        latestRoom.current_key_version,
+      )).name;
+      setRoom(latestRoom);
+      setRoomName(latestName);
+      const recipientIds = [...new Set([...latestRoom.members.map((member) => member.user_id), userId])];
       const publicKeys = await Promise.all(recipientIds.map(async (id) => ({
         userId: id, publicKey: (await api<PublicKeyResponse>("/users/" + id + "/crypto-key")).public_key,
       })));
       const { raw, key } = await createRoomKey();
       try {
-        const encryptedMetadata = await encryptRoomMetadataWithKey(key, { name: roomName });
+        const encryptedMetadata = await encryptRoomMetadataWithKey(key, { name: latestName });
         const keyEnvelopes = await Promise.all(publicKeys.map(async (entry) => ({ userId: entry.userId, wrappedKey: await wrapRoomKeyForUser(raw, entry.publicKey) })));
-        const nextVersion = room.current_key_version + 1;
+        const nextVersion = latestRoom.current_key_version + 1;
         await api("/invitations/rooms/" + roomId + "/requests/" + userId + "/approve", {
           method: "POST", body: JSON.stringify({ encryptedMetadata, keyEnvelopes }),
         });
