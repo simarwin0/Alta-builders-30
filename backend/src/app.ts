@@ -10,6 +10,7 @@ import { healthRouter } from "./routes/health.js";
 import { invitationsRouter } from "./routes/invitations.js";
 import { roomsRouter } from "./routes/rooms.js";
 import { usersRouter } from "./routes/users.js";
+import { notificationsRouter } from "./routes/notifications.js";
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -60,6 +61,7 @@ export function createApp() {
   app.use("/api/auth", authRouter);
   app.use("/api/admin", adminRouter);
   app.use("/api/users", usersRouter);
+  app.use("/api/notifications", notificationsRouter);
   app.use("/api/rooms", roomsRouter);
   app.use("/api/invitations", invitationsRouter);
 
