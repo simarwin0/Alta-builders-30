@@ -960,3 +960,30 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+
+/* Remember-device option */
+.remember-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin: 2px 0 4px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(249,248,255,.78);
+  text-align: left;
+  cursor: pointer;
+}
+.remember-row input {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: var(--accent);
+  box-shadow: none;
+}
+.remember-row span { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+.remember-row strong { color: var(--ink); font-size: 13px; }
+.remember-row small { color: var(--muted); font-size: 11px; line-height: 1.45; }

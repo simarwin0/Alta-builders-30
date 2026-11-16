@@ -1,13 +1,22 @@
 import { lockAccount } from "./crypto";
 const AUTH_FLAG = "chat_authenticated";
-// Route HTTP API requests through the Vercel origin. This keeps the HttpOnly
-// session cookie first-party in browsers that block third-party cookies.
+const REMEMBERED_AUTH_FLAG = "chat_remembered_auth";
+// Route API requests through Vercel so the HttpOnly session cookie remains first-party.
 const API_ORIGIN = "";
 
-export const isAuthenticated = () => sessionStorage.getItem(AUTH_FLAG) === "1";
-export const markAuthenticated = () => sessionStorage.setItem(AUTH_FLAG, "1");
+export const isAuthenticated = () =>
+  sessionStorage.getItem(AUTH_FLAG) === "1" || localStorage.getItem(REMEMBERED_AUTH_FLAG) === "1";
+
+export const markAuthenticated = (rememberMe = false) => {
+  sessionStorage.removeItem(AUTH_FLAG);
+  localStorage.removeItem(REMEMBERED_AUTH_FLAG);
+  if (rememberMe) localStorage.setItem(REMEMBERED_AUTH_FLAG, "1");
+  else sessionStorage.setItem(AUTH_FLAG, "1");
+};
+
 export const clearSession = () => {
   sessionStorage.removeItem(AUTH_FLAG);
+  localStorage.removeItem(REMEMBERED_AUTH_FLAG);
   lockAccount();
 };
 

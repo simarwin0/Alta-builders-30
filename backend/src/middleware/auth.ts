@@ -10,30 +10,35 @@ export interface AuthedRequest extends Request {
 
 export const SESSION_COOKIE = config.env === "production" ? "__Host-chat_session" : "chat_session";
 const SESSION_TTL_MS = 60 * 60 * 1000;
+const REMEMBERED_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const JWT_ISSUER = "chat-app-api";
 const JWT_AUDIENCE = "chat-app-client";
 
-const cookieOptions = {
+const cookieBaseOptions = {
   httpOnly: true,
   secure: config.env === "production",
   sameSite: (config.env === "production" ? "none" : "lax") as "none" | "lax",
   path: "/",
-  maxAge: SESSION_TTL_MS,
 };
 
-const signToken = (userId: string, sessionVersion: number) => jwt.sign(
+const signToken = (userId: string, sessionVersion: number, rememberMe: boolean) => jwt.sign(
   { sub: userId, ver: sessionVersion },
   config.jwtSecret,
-  { algorithm: "HS256", expiresIn: "1h", issuer: JWT_ISSUER, audience: JWT_AUDIENCE },
+  {
+    algorithm: "HS256",
+    expiresIn: rememberMe ? "30d" : "1h",
+    issuer: JWT_ISSUER,
+    audience: JWT_AUDIENCE,
+  },
 );
 
-export function setSessionCookie(res: Response, userId: string, sessionVersion: number) {
-  res.cookie(SESSION_COOKIE, signToken(userId, sessionVersion), cookieOptions);
+export function setSessionCookie(res: Response, userId: string, sessionVersion: number, rememberMe = false) {
+  const maxAge = rememberMe ? REMEMBERED_SESSION_TTL_MS : SESSION_TTL_MS;
+  res.cookie(SESSION_COOKIE, signToken(userId, sessionVersion, rememberMe), { ...cookieBaseOptions, maxAge });
 }
 
 export function clearSessionCookie(res: Response) {
-  const { maxAge: _maxAge, ...clearOptions } = cookieOptions;
-  res.clearCookie(SESSION_COOKIE, clearOptions);
+  res.clearCookie(SESSION_COOKIE, cookieBaseOptions);
 }
 
 export function readCookie(header: string | undefined, name: string): string | null {

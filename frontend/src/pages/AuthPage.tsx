@@ -3,6 +3,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { api, clearSession, markAuthenticated } from "../api";
 import { createAccountBundle, unlockAccount } from "../crypto";
 
+const SAVED_USERNAME_KEY = "alta_saved_username";
+const REMEMBER_DEVICE_KEY = "alta_remember_device";
+
 type AuthResponse = { user: { id: string; username: string; crypto_salt: string; crypto_public_key: JsonWebKey; wrapped_private_key: { iv: string; ciphertext: string; iterations: number } } };
 
 function validateSignupPassword(password: string): string | null {
@@ -18,7 +21,14 @@ export default function AuthPage() {
   const nav = useNavigate();
   const location = useLocation();
   const [mode, setMode] = useState<"login" | "signup">("login");
-  const [form, setForm] = useState({ username: "", email: "", password: "", displayName: "", adminBootstrapToken: "" });
+  const [rememberMe, setRememberMe] = useState(() => localStorage.getItem(REMEMBER_DEVICE_KEY) === "1");
+  const [form, setForm] = useState(() => ({
+    username: localStorage.getItem(SAVED_USERNAME_KEY) ?? "",
+    email: "",
+    password: "",
+    displayName: "",
+    adminBootstrapToken: "",
+  }));
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, [k]: e.target.value }));
@@ -37,14 +47,23 @@ export default function AuthPage() {
         });
         const response = await api<{ user: { id: string; username: string } }>("/auth/signup", {
           method: "POST",
-          body: JSON.stringify({ username: form.username, password: form.password, ...(form.adminBootstrapToken.trim() ? { adminBootstrapToken: form.adminBootstrapToken.trim() } : {}), ...bundle }),
+          body: JSON.stringify({ username: form.username, password: form.password, rememberMe, ...(form.adminBootstrapToken.trim() ? { adminBootstrapToken: form.adminBootstrapToken.trim() } : {}), ...bundle }),
         });
         await unlockAccount(response.user.id, form.password, { cryptoSalt: bundle.cryptoSalt, cryptoPublicKey: bundle.cryptoPublicKey, wrappedPrivateKey: bundle.wrappedPrivateKey });
       } else {
-        const response = await api<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify({ username: form.username, password: form.password }) });
+        const response = await api<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify({ username: form.username, password: form.password, rememberMe }) });
         await unlockAccount(response.user.id, form.password, { cryptoSalt: response.user.crypto_salt, cryptoPublicKey: response.user.crypto_public_key, wrappedPrivateKey: response.user.wrapped_private_key });
       }
-      markAuthenticated(); setForm((prev) => ({ ...prev, password: "", adminBootstrapToken: "" })); const destination = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from; nav(destination?.pathname ? destination.pathname + (destination.search ?? "") + (destination.hash ?? "") : "/");
+      if (rememberMe) {
+        localStorage.setItem(SAVED_USERNAME_KEY, form.username.trim());
+        localStorage.setItem(REMEMBER_DEVICE_KEY, "1");
+      } else {
+        localStorage.removeItem(SAVED_USERNAME_KEY);
+        localStorage.removeItem(REMEMBER_DEVICE_KEY);
+      }
+      markAuthenticated(rememberMe);
+      setForm((prev) => ({ ...prev, password: "", adminBootstrapToken: "" }));
+      const destination = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from; nav(destination?.pathname ? destination.pathname + (destination.search ?? "") + (destination.hash ?? "") : "/");
     } catch (err) {
       clearSession(); setError((err as Error).message || "Unable to unlock encrypted account data");
     } finally { setBusy(false); }
@@ -55,15 +74,22 @@ export default function AuthPage() {
       <h1>Alta Chat</h1><p className="muted">End-to-end encrypted chat</p>
       <form onSubmit={submit}>
         {mode === "signup" && <>
-          <input placeholder="Username (public handle)" value={form.username} onChange={set("username")} required minLength={3} maxLength={30} pattern="[A-Za-z0-9_]{3,30}" title="Use 3-30 letters, numbers or underscores." />
+          <input name="username" autoComplete="username" placeholder="Username (public handle)" value={form.username} onChange={set("username")} required minLength={3} maxLength={30} pattern="[A-Za-z0-9_]{3,30}" title="Use 3-30 letters, numbers or underscores." />
           <input type="text" placeholder="Display name (encrypted)" value={form.displayName} onChange={set("displayName")} />
           <input type="email" placeholder="Email (encrypted)" value={form.email} onChange={set("email")} required />
           <input type="password" placeholder="One-time admin setup key (admin only)" value={form.adminBootstrapToken} onChange={set("adminBootstrapToken")} autoComplete="off" />
           <small className="muted">Leave this blank for a normal account. This is a separate one-time key supplied privately by the site owner — it is not your account password.</small>
         </>}
-        {mode === "login" && <input placeholder="Username" value={form.username} onChange={set("username")} required />}
-        <input type="password" placeholder="Password" value={form.password} onChange={set("password")} required minLength={mode === "signup" ? 12 : undefined} autoComplete={mode === "login" ? "current-password" : "new-password"} />
+        {mode === "login" && <input name="username" autoComplete="username" placeholder="Username" value={form.username} onChange={set("username")} required />}
+        <input name="password" type="password" placeholder="Password" value={form.password} onChange={set("password")} required minLength={mode === "signup" ? 12 : undefined} autoComplete={mode === "login" ? "current-password" : "new-password"} />
         {mode === "signup" && <small className="muted">Use at least 12 characters, including one letter and one number (maximum 72 UTF-8 bytes). Your password protects your private encryption key and cannot be recovered.</small>}
+        <label className="remember-row">
+          <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
+          <span>
+            <strong>Remember this device</strong>
+            <small>Keep the secure sign-in session for up to 30 days. You’ll still need your password to unlock encryption keys.</small>
+          </span>
+        </label>
         {error && <p className="error" role="alert">{error}</p>}
         <button type="submit" disabled={busy}>{busy ? "Securing account…" : mode === "login" ? "Log in" : "Create encrypted account"}</button>
       </form>

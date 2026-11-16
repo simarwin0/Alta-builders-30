@@ -13,7 +13,7 @@ export const authRouter = Router();
 authRouter.post("/signup", async (req, res) => {
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Validation failed", fields: parsed.error.flatten().fieldErrors });
-  const { username, password, adminBootstrapToken, ...cryptoData } = parsed.data;
+  const { username, password, adminBootstrapToken, rememberMe, ...cryptoData } = parsed.data;
 
   if (adminBootstrapToken) {
     const expected = Buffer.from(config.adminBootstrapToken ?? "", "utf8");
@@ -43,7 +43,7 @@ authRouter.post("/signup", async (req, res) => {
       if (promoted.matchedCount !== 1) throw new Error("Admin account promotion failed");
       user.role = "admin";
     }
-    setSessionCookie(res, user.id, user.session_version);
+    setSessionCookie(res, user.id, user.session_version, rememberMe);
     const { session_version: _sessionVersion, ...publicUser } = user;
     return res.status(201).json({ user: publicUser });
   } catch (err) {
@@ -55,7 +55,7 @@ authRouter.post("/signup", async (req, res) => {
 authRouter.post("/login", async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Validation failed", fields: parsed.error.flatten().fieldErrors });
-  const { username, password } = parsed.data;
+  const { username, password, rememberMe } = parsed.data;
   const found = await findCredentialsByUsername(username);
   const ok = await verifyPassword(password, found?.password_hash ?? (await dummyHash()));
   if (!found || !ok) return res.status(401).json({ error: "Invalid username or password" });
@@ -64,7 +64,7 @@ authRouter.post("/login", async (req, res) => {
   }
 
   const { password_hash: _omit, ...user } = found;
-  setSessionCookie(res, user.id, user.session_version);
+  setSessionCookie(res, user.id, user.session_version, rememberMe);
   const { session_version: _sessionVersion, ...publicUser } = user;
   return res.json({ user: publicUser });
 });

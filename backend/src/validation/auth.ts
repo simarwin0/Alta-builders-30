@@ -19,6 +19,7 @@ const encryptedBlob = z.object({ iv: base64.length(16), ciphertext: base64.min(2
 export const signupSchema = z.object({
   username,
   password,
+  rememberMe: z.boolean().optional().default(false),
   adminBootstrapToken: z.string().min(40).max(200).optional(),
   cryptoSalt: z.string().regex(/^[A-Za-z0-9+/]{22}==$/),
   cryptoPublicKey: publicKey,
@@ -28,6 +29,7 @@ export const signupSchema = z.object({
 
 export const loginSchema = z.object({
   username,
+  rememberMe: z.boolean().optional().default(false),
   password: z.string().min(1).max(72).refine((p) => Buffer.byteLength(p, "utf8") <= MAX_PASSWORD_BYTES, "Password is too long (72 bytes max)"),
 }).strict();
 
