@@ -6,9 +6,12 @@ import type { Message, RoomDetails } from "../types";
 
 function getRoomDisplayName(details: RoomDetails, encryptedName: string): string {
   if (details.type === "direct") {
-    return details.members.find((member) => member.user_id !== details.my_user_id)?.username ?? encryptedName;
+    return details.direct_peer_name
+      ?? details.members.find((member) => member.user_id !== details.my_user_id)?.username
+      ?? encryptedName
+      ?? "Direct chat";
   }
-  return encryptedName;
+  return encryptedName || "Encrypted group";
 }
 
 async function decryptMessage(roomId: string, message: Message): Promise<Message> {
@@ -52,6 +55,18 @@ export default function ChatRoomPage() {
   const [pendingRequests, setPendingRequests] = useState<Array<{ user_id: string; username: string; status: string }>>([]);
   const [inviteBusy, setInviteBusy] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
+
+  async function fetchLatestRoomWithCurrentKey() {
+    const latest = await api<RoomDetails>(`/rooms/${roomId}`);
+    clearRoomKeyCache(roomId, latest.current_key_version);
+    for (const envelope of latest.key_envelopes) {
+      await unwrapRoomKey(roomId, envelope.wrapped_key, envelope.key_version);
+    }
+    if (!latest.key_envelopes.some((envelope) => envelope.key_version === latest.current_key_version)) {
+      throw new Error("Your current room encryption key is not available on this device. Ask an owner or admin to refresh your membership.");
+    }
+    return latest;
+  }
 
   async function loadRoom() {
     try {
@@ -184,44 +199,44 @@ export default function ChatRoomPage() {
     const clear = text.trim();
     if (!clear) return;
     try {
-      // Always get the latest member-specific key envelope before sending.
-      // A group owner/admin may have added someone and rotated the key while
-      // this member's chat tab was open.
-      const latestRoom = await api<RoomDetails>(`/rooms/${roomId}`);
-      // Re-import the latest version from this member's own persisted
-      // envelope so a stale key cached by an older app build cannot block sends.
-      clearRoomKeyCache(roomId, latestRoom.current_key_version);
-      for (const envelope of latestRoom.key_envelopes) {
-        await unwrapRoomKey(roomId, envelope.wrapped_key, envelope.key_version);
-      }
-      const currentEnvelope = latestRoom.key_envelopes.find(
-        (envelope) => envelope.key_version === latestRoom.current_key_version,
-      );
-      if (!currentEnvelope) {
-        throw new Error("Your current group encryption key is not available on this device. Reload the chat or ask an admin to re-add you.");
-      }
-      const encryptedName = latestRoom.type === "direct"
-        ? ""
-        : (await decryptRoomMetadata(
-            roomId,
-            latestRoom.encrypted_metadata,
-            latestRoom.current_key_version,
-          )).name;
-      setRoom(latestRoom);
-      setRoomName(getRoomDisplayName(latestRoom, encryptedName));
-      setKeyVersion(latestRoom.current_key_version);
+      let saved: Message | null = null;
+      // Retry once the server reports a key-version conflict. This can happen
+      // when an owner adds/removes a member between our key refresh and POST.
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const latestRoom = await fetchLatestRoomWithCurrentKey();
+        const encryptedName = latestRoom.type === "direct"
+          ? ""
+          : (await decryptRoomMetadata(
+              roomId,
+              latestRoom.encrypted_metadata,
+              latestRoom.current_key_version,
+            )).name;
+        setRoom(latestRoom);
+        setRoomName(getRoomDisplayName(latestRoom, encryptedName));
+        setKeyVersion(latestRoom.current_key_version);
 
-      const activeKeyVersion = latestRoom.current_key_version;
-      const encrypted = await encryptRoomText(roomId, clear, activeKeyVersion);
-      const saved = await api<Message>(`/rooms/${roomId}/messages`, {
-        method: "POST",
-        body: JSON.stringify({
-          roomId,
-          encryptedContent: encrypted.ciphertext,
-          encryptedIv: encrypted.iv,
-          keyVersion: activeKeyVersion,
-        }),
-      });
+        const activeKeyVersion = latestRoom.current_key_version;
+        const encrypted = await encryptRoomText(roomId, clear, activeKeyVersion);
+        try {
+          saved = await api<Message>(`/rooms/${roomId}/messages`, {
+            method: "POST",
+            body: JSON.stringify({
+              roomId,
+              encryptedContent: encrypted.ciphertext,
+              encryptedIv: encrypted.iv,
+              keyVersion: activeKeyVersion,
+            }),
+          });
+          break;
+        } catch (err) {
+          const keyChanged = (err as Error).message.toLowerCase().includes("room encryption key changed");
+          if (!keyChanged) throw err;
+          if (attempt === 2) {
+            throw new Error("The group encryption key is changing repeatedly. Wait a moment, then tap Send again.");
+          }
+        }
+      }
+      if (!saved) throw new Error("Your message could not be sent. Please try again.");
       const readable = await decryptMessage(roomId, saved);
       setMessages((previous) => [...previous.filter((message) => message.id !== readable.id), readable]);
       setText("");
