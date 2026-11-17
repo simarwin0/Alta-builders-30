@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { Types } from "mongoose";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
@@ -60,6 +61,20 @@ aiReviewsRouter.post("/analyze", requireAuth, reviewLimiter, async (req: AuthedR
     console.error("AI review failed:", error instanceof Error ? error.name : "UnknownError");
     return res.status(502).json({ error: "Unable to complete code review" });
   }
+});
+
+aiReviewsRouter.get("/:reviewId", requireAuth, async (req: AuthedRequest, res) => {
+  if (!Types.ObjectId.isValid(req.params.reviewId)) return res.status(404).json({ error: "Review not found" });
+  const item = await AiReviewModel.findOne({ _id: req.params.reviewId, userId: req.userId }).select("-code").lean();
+  if (!item) return res.status(404).json({ error: "Review not found" });
+  return res.json(item);
+});
+
+aiReviewsRouter.delete("/:reviewId", requireAuth, async (req: AuthedRequest, res) => {
+  if (!Types.ObjectId.isValid(req.params.reviewId)) return res.status(404).json({ error: "Review not found" });
+  const deleted = await AiReviewModel.findOneAndDelete({ _id: req.params.reviewId, userId: req.userId });
+  if (!deleted) return res.status(404).json({ error: "Review not found" });
+  return res.status(204).end();
 });
 
 aiReviewsRouter.get("/history", requireAuth, async (req: AuthedRequest, res) => {
