@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Activity, ArrowUpRight, Check, ChevronDown, Clock3, Code2, FileCode2, Github, LoaderCircle, LockKeyhole, Search, ShieldCheck, Sparkles, Terminal, TriangleAlert, UploadCloud, Zap } from "lucide-react";
 
 type Finding = { category: "bug" | "style" | "security"; severity: "Low" | "Medium" | "High"; title: string; description: string; line: number | null; suggestedFix: string; confidence: number };
-type Report = { summary: string; overallRisk: "Low" | "Medium" | "High"; findings: Finding[]; positives: string[]; model?: string; usage?: { inputTokens: number; outputTokens: number; totalTokens: number } | null };
+type Report = { summary: string; overallRisk: "Low" | "Medium" | "High"; findings: Finding[]; positives: string[]; model?: string; usage?: { inputTokens: number; outputTokens: number; totalTokens: number } | null };\ntype HistoryItem = { title: string; time: string };
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:4001";
 const sample = `function getUser(userId) {
   const query = "SELECT * FROM users WHERE id = " + userId;
@@ -22,7 +22,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [activeFilter, setActiveFilter] = useState("All findings");
-  const [history, setHistory] = useState<{ title: string; time: string }[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);\n  useEffect(() => {\n    let active = true;\n    fetch(`${API}/api/reviews/history?page=1&limit=8`, { credentials: "include" })\n      .then(response => response.ok ? response.json() : null)\n      .then(data => { if (active && Array.isArray(data?.items)) setHistory(data.items.map((item: { filename?: string; createdAt?: string }) => ({ title: item.filename || "Code review", time: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Saved review" }))); })\n      .catch(() => undefined);\n    return () => { active = false; };\n  }, []);
   const counts = useMemo(() => ({
     high: report?.findings.filter(f => f.severity === "High").length ?? 0,
     medium: report?.findings.filter(f => f.severity === "Medium").length ?? 0,
