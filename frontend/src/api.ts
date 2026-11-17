@@ -34,7 +34,7 @@ export async function waitForApiReady(onStatus?: (message: string) => void): Pro
     const timeout = setTimeout(() => controller.abort(), 10_000);
 
     try {
-      const response = await fetch(\`\${API_ORIGIN}/api/health\`, {
+      const response = await fetch(`${API_ORIGIN}/api/health`, {
         method: "GET",
         credentials: "include",
         cache: "no-store",
@@ -61,7 +61,7 @@ export async function waitForApiReady(onStatus?: (message: string) => void): Pro
       } else if (response.ok) {
         throw new ApiHealthError("Alta Chat's backend returned an unexpected health response. Please retry.");
       } else {
-        throw new ApiHealthError(typeof data?.error === "string" ? data.error : \`The secure server health check returned HTTP \${response.status}.\`);
+        throw new ApiHealthError(typeof data?.error === "string" ? data.error : `The secure server health check returned HTTP ${response.status}.`);
       }
     } catch (error) {
       if (error instanceof ApiHealthError) throw error;
@@ -83,7 +83,7 @@ export async function waitForApiReady(onStatus?: (message: string) => void): Pro
 export async function api<T = any>(path: string, options: RequestInit = {}): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(\`\${API_ORIGIN}/api\${path}\`, {
+    res = await fetch(`${API_ORIGIN}/api${path}`, {
       ...options,
       credentials: "include",
       headers: { Accept: "application/json", "Content-Type": "application/json", ...options.headers },
@@ -107,7 +107,7 @@ export async function api<T = any>(path: string, options: RequestInit = {}): Pro
       ? "Alta Chat's secure server is temporarily unavailable or waking up. Wait about a minute and try again."
       : res.status === 404
         ? "The requested backend route was not found. The deployment may be out of sync."
-        : \`Alta Chat's server returned HTTP \${res.status}. Please retry.\`;
+        : `Alta Chat's server returned HTTP ${res.status}. Please retry.`;
     throw new Error(detail || (typeof data.error === "string" ? data.error : fallback));
   }
 
