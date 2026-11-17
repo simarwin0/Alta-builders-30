@@ -1,0 +1,11 @@
+flowchart TD
+  U[React dashboard] -->|code or GitHub URL| API[Express API]
+  API --> AUTH[JWT authentication]
+  AUTH --> VALIDATE[Input validation and size limits]
+  VALIDATE --> FETCH[Allowlisted GitHub raw-file fetcher]
+  FETCH --> PROMPT[Senior reviewer instructions]
+  PROMPT --> OPENAI[OpenAI Responses API]
+  OPENAI --> PARSE[Schema validation and normalization]
+  PARSE --> SAVE[MongoDB Review record]
+  SAVE --> REPORT[Structured JSON response]
+  REPORT --> UI[Dashboard report and history]
