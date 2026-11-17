@@ -3,7 +3,7 @@ import { Activity, ArrowUpRight, Check, ChevronDown, Clock3, Code2, FileCode2, G
 
 type Finding = { category: "bug" | "style" | "security"; severity: "Low" | "Medium" | "High"; title: string; description: string; line: number | null; suggestedFix: string; confidence: number };
 type Report = { summary: string; overallRisk: "Low" | "Medium" | "High"; findings: Finding[]; positives: string[]; model?: string; usage?: { inputTokens: number; outputTokens: number; totalTokens: number } | null };
-type HistoryItem = { title: string; time: string };
+type HistoryItem = { id?: string; title: string; time: string };
 const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const sample = `function getUser(userId) {
   const query = "SELECT * FROM users WHERE id = " + userId;
@@ -81,6 +81,22 @@ export default function App() {
     await fetch(`${API}/api/auth/logout`, { method: "POST", credentials: "include" }).catch(() => undefined);
     setUser(null); setHistory([]); setReport(null);
   }
+
+  async function openHistory(id?: string) {
+    if (!id) return;
+    setError(""); setLoading(true);
+    try {
+      const response = await fetch(`${API}/api/reviews/${id}`, { credentials: "include" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Unable to load saved review");
+      setReport(data.report);
+      setActiveFilter("All findings");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load saved review");
+    } finally {
+      setLoading(false);
+    }
+  }
   const counts = useMemo(() => ({
     high: report?.findings.filter(f => f.severity === "High").length ?? 0,
     medium: report?.findings.filter(f => f.severity === "Medium").length ?? 0,
@@ -98,7 +114,7 @@ export default function App() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Review request failed");
       setReport(data.report ?? data);
-      setHistory(items => [{ title: mode === "code" ? "Pasted code review" : githubUrl.split("/").pop() || "GitHub review", time: "Just now" }, ...items].slice(0, 6));
+      setHistory(items => [{ id: data.reviewId, title: mode === "code" ? "Pasted code review" : githubUrl.split("/").pop() || "GitHub review", time: "Just now" }, ...items].slice(0, 6));
     } catch (e) { setError(e instanceof Error ? e.message : "Something went wrong"); }
     finally { setLoading(false); }
   }
@@ -126,7 +142,7 @@ export default function App() {
       <button className="nav-item" onClick={() => { setReport(null); setCode(""); setMode("code"); }}><FileCode2 size={17}/> New review <span className="shortcut">⌘ K</span></button>
       <div className="side-divider"/>
       <div className="workspace-label history-label">RECENT REVIEWS</div>
-      {history.length ? history.map((item, i) => <button className="history-item" key={i}><Clock3 size={14}/><span>{item.title}</span></button>) : <p className="empty-history">Your recent reviews will appear here.</p>}
+      {history.length ? history.map((item, i) => <button className="history-item" key={item.id || i} onClick={() => void openHistory(item.id)}><Clock3 size={14}/><span>{item.title}</span></button>) : <p className="empty-history">Your recent reviews will appear here.</p>}
       <div className="sidebar-bottom"><div className="secure-card"><div className="secure-icon"><LockKeyhole size={15}/></div><div><b>Private by design</b><span>Your code stays yours.</span></div><ShieldCheck size={16} className="secure-check"/></div><div className="profile"><div className="avatar">{user.username?.slice(0,1).toUpperCase() || "A"}</div><div><b>{user.username || "ALTA Workspace"}</b><span>Signed in</span></div><button className="signout" onClick={signOut}>Sign out</button></div></div>
     </aside>
 
