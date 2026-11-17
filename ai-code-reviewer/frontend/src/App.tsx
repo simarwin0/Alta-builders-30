@@ -4,7 +4,7 @@ import { Activity, ArrowUpRight, Check, ChevronDown, Clock3, Code2, FileCode2, G
 type Finding = { category: "bug" | "style" | "security"; severity: "Low" | "Medium" | "High"; title: string; description: string; line: number | null; suggestedFix: string; confidence: number };
 type Report = { summary: string; overallRisk: "Low" | "Medium" | "High"; findings: Finding[]; positives: string[]; model?: string; usage?: { inputTokens: number; outputTokens: number; totalTokens: number } | null };
 type HistoryItem = { title: string; time: string };
-const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:4001";
+const API = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000";
 const sample = `function getUser(userId) {
   const query = "SELECT * FROM users WHERE id = " + userId;
   return db.query(query);
@@ -114,7 +114,7 @@ export default function App() {
       <label htmlFor="alta-password">Password</label><input id="alta-password" type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Your password" required/>
       {authError && <div className="error-message"><TriangleAlert size={15}/>{authError}</div>}
       <button className="analyze-button auth-submit" disabled={authLoading || !username.trim() || !password}>{authLoading ? <><LoaderCircle className="spin" size={16}/> Signing in...</> : <>Sign in to ALTA <ArrowUpRight size={16}/></>}</button>
-      <span className="auth-footnote">Uses your existing ALTA account. Your password is sent only to your configured API over HTTPS.</span>
+      <span className="auth-footnote">Uses your existing ALTA account. Your password is sent only to the configured ALTA API; use HTTPS in production.</span>
     </form></div>;
   }
 
