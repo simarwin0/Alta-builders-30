@@ -22,3 +22,9 @@ services:
         value: "12"
       - key: TRUST_PROXY
         value: "0"
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-6-luna
+      - key: MAX_REVIEW_CODE_CHARS
+        value: "30000"
