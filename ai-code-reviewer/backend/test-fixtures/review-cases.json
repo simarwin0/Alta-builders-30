@@ -1,0 +1,92 @@
+[
+  {
+    "id": "case-01-sql-injection",
+    "language": "javascript",
+    "filename": "users.js",
+    "code": "async function findUser(db, name) { return db.query(\"SELECT * FROM users WHERE name = '\" + name + \"'\"); }",
+    "expectedCategories": ["security"],
+    "expectedSeverityAtLeast": "High",
+    "reviewerNote": "User-controlled SQL is concatenated into the query."
+  },
+  {
+    "id": "case-02-division-by-zero",
+    "language": "javascript",
+    "filename": "math.js",
+    "code": "function average(total, count) { return total / count; }",
+    "expectedCategories": ["bug"],
+    "expectedSeverityAtLeast": "Medium",
+    "reviewerNote": "No guard exists for a zero count."
+  },
+  {
+    "id": "case-03-eval",
+    "language": "javascript",
+    "filename": "calculator.js",
+    "code": "function calculate(expression) { return eval(expression); }",
+    "expectedCategories": ["security"],
+    "expectedSeverityAtLeast": "High",
+    "reviewerNote": "Untrusted expression is executed as JavaScript."
+  },
+  {
+    "id": "case-04-xss",
+    "language": "javascript",
+    "filename": "render.js",
+    "code": "function render(container, userInput) { container.innerHTML = userInput; }",
+    "expectedCategories": ["security"],
+    "expectedSeverityAtLeast": "High",
+    "reviewerNote": "Untrusted input is inserted as HTML without sanitization."
+  },
+  {
+    "id": "case-05-path-traversal",
+    "language": "javascript",
+    "filename": "download.js",
+    "code": "import fs from 'node:fs';\nimport path from 'node:path';\nfunction readFile(name) { return fs.readFileSync(path.join('/srv/files', name), 'utf8'); }",
+    "expectedCategories": ["security"],
+    "expectedSeverityAtLeast": "High",
+    "reviewerNote": "Path segments are not constrained to the intended directory."
+  },
+  {
+    "id": "case-06-hardcoded-secret",
+    "language": "javascript",
+    "filename": "config.js",
+    "code": "export const config = { apiKey: 'sk_live_example_secret_value' };",
+    "expectedCategories": ["security"],
+    "expectedSeverityAtLeast": "High",
+    "reviewerNote": "A credential-like value is hard-coded in source."
+  },
+  {
+    "id": "case-07-weak-password-hash",
+    "language": "python",
+    "filename": "auth.py",
+    "code": "import hashlib\ndef password_hash(password):\n    return hashlib.md5(password.encode()).hexdigest()",
+    "expectedCategories": ["security"],
+    "expectedSeverityAtLeast": "High",
+    "reviewerNote": "MD5 is unsuitable for password storage; use a password hashing function."
+  },
+  {
+    "id": "case-08-missing-authz",
+    "language": "javascript",
+    "filename": "admin.js",
+    "code": "app.delete('/api/users/:id', async (req, res) => { await User.deleteOne({ _id: req.params.id }); res.sendStatus(204); });",
+    "expectedCategories": ["security"],
+    "expectedSeverityAtLeast": "High",
+    "reviewerNote": "Sensitive deletion endpoint has no visible authentication or authorization guard."
+  },
+  {
+    "id": "case-09-null-dereference",
+    "language": "javascript",
+    "filename": "profile.js",
+    "code": "function displayName(user) { return user.profile.name.toUpperCase(); }",
+    "expectedCategories": ["bug"],
+    "expectedSeverityAtLeast": "Medium",
+    "reviewerNote": "Nested properties can be absent or null."
+  },
+  {
+    "id": "case-10-resource-leak",
+    "language": "python",
+    "filename": "reader.py",
+    "code": "def read_first_line(filename):\n    handle = open(filename, 'r')\n    return handle.readline()",
+    "expectedCategories": ["bug", "style"],
+    "expectedSeverityAtLeast": "Low",
+    "reviewerNote": "The file handle is not deterministically closed."
+  }
+]
