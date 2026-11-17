@@ -4,6 +4,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { reviewCode, testLlmConnection } from "./reviewer/service.js";
+import { resolveSource } from "./input/source.js";
 
 const app = express();
 const maxCodeChars = Number(process.env.MAX_CODE_CHARS ?? 30000);
@@ -23,9 +24,12 @@ app.use(rateLimit({
 }));
 
 const analyzeInput = z.object({
-  code: z.string().trim().min(1).max(maxCodeChars),
+  code: z.string().max(maxCodeChars).optional(),
+  githubUrl: z.string().url().max(2048).optional(),
   language: z.string().trim().max(80).optional(),
   filename: z.string().trim().max(240).optional()
+}).refine(data => Boolean(data.code?.trim()) !== Boolean(data.githubUrl?.trim()), {
+  message: "Provide exactly one of code or githubUrl"
 });
 
 app.get("/health", (_req, res) => res.json({ status: "ok", service: "alta-ai-code-reviewer" }));
@@ -46,14 +50,17 @@ app.post("/api/reviews/analyze", async (req, res) => {
     return res.status(400).json({ error: "Invalid review input", details: input.error.flatten() });
   }
   try {
-    const result = await reviewCode(
-      input.data.code,
-      input.data.language ?? "unknown",
-      input.data.filename ?? "pasted-code"
-    );
-    return res.json({ success: true, ...result });
+    const source = await resolveSource(input.data);
+    if (source.code.length > maxCodeChars) {
+      return res.status(413).json({ error: "Code exceeds the configured size limit" });
+    }
+    const result = await reviewCode(source.code, input.data.language ?? source.language, input.data.filename ?? source.filename);
+    return res.json({ success: true, source: { filename: source.filename, language: source.language, sourceUrl: source.sourceUrl }, ...result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Review failed";
+    if (/GitHub|URL|empty|exactly one|size limit|Code cannot/i.test(message)) {
+      return res.status(400).json({ error: message });
+    }
     const status = message.includes("OPENAI_API_KEY") ? 503 : 502;
     return res.status(status).json({ error: status === 503 ? message : "Unable to complete code review" });
   }
