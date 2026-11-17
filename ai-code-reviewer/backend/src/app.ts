@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit, { ipKeyGenerator } from "express-rate-limit";
+import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import { reviewCode, testLlmConnection } from "./reviewer/service.js";
 import { resolveSource } from "./input/source.js";
@@ -32,7 +32,7 @@ const perUserReviewLimit = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     const userId = (req as AuthenticatedRequest).userId;
-    return userId ? `user:${userId}` : ipKeyGenerator(req.ip ?? "unknown");
+    return userId ? `user:${userId}` : "unauthenticated";
   }
 });
 
