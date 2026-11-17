@@ -1,12 +1,16 @@
 {
   "rewrites": [
     {
-      "source": "/railway-health-check",
-      "destination": "https://alta-chat-backend-production.up.railway.app/api/health"
+      "source": "/api/:path*",
+      "destination": "https://alta-chat-backend-production.up.railway.app/api/:path*"
     },
     {
-      "source": "/api/:path*",
-      "destination": "https://alta-chat-backend.onrender.com/api/:path*"
+      "source": "/socket.io",
+      "destination": "https://alta-chat-backend-production.up.railway.app/socket.io"
+    },
+    {
+      "source": "/socket.io/:path*",
+      "destination": "https://alta-chat-backend-production.up.railway.app/socket.io/:path*"
     },
     {
       "source": "/(.*)",
