@@ -42,48 +42,93 @@ export async function getMembership(roomId: string, userId: string): Promise<Mem
 
 /** Room list returns encrypted metadata and only this member's room-key envelope. */
 export async function listRoomsForUser(userId: string) {
-  const rooms = (await RoomModel.find({ "members.user": userId }).lean()) as unknown as RoomDoc[];
-  // A direct chat's encrypted metadata was created from one participant's
-  // perspective. Resolve the other participant's public username separately
-  // so each person sees the correct peer name without changing E2EE data.
-  const peerIds = rooms
+  // Fetch room membership/key data once. Message summaries are loaded in two
+  // indexed aggregation queries below instead of two round-trips per room.
+  const rooms = (await RoomModel.find({ "members.user": userId })
+    .select("type encryptedMetadata keyEnvelopes currentKeyVersion members createdAt")
+    .lean()) as unknown as RoomDoc[];
+  if (!rooms.length) return [];
+
+  const roomIds = rooms.map((room) => room._id);
+  const peerIds = Array.from(new Set(rooms
     .filter((room) => room.type === "direct")
     .flatMap((room) => room.members
       .map((member) => idStr(member.user))
-      .filter((memberId) => memberId !== userId));
-  const peerUsers = await UserModel.find({ _id: { $in: peerIds } }).select("_id username").lean();
-  const peerNames = new Map(peerUsers.map((user) => [idStr(user._id), user.username as string]));
-  const rows = await Promise.all(rooms.map(async (r) => {
-    const me = r.members.find((m) => idStr(m.user) === userId)!;
-    const peerId = r.type === "direct"
-      ? r.members.map((member) => idStr(member.user)).find((memberId) => memberId !== userId)
-      : undefined;
-    const last = (await MessageModel.findOne({ room: r._id, deletedAt: null })
-      .sort({ _id: -1 }).populate("sender", "username").lean()) as any;
-    const unreadFilter: Record<string, unknown> = { room: r._id, deletedAt: null, sender: { $ne: userId } };
-    if (me.lastReadMessageId) unreadFilter._id = { $gt: me.lastReadMessageId };
-    const unread = await MessageModel.countDocuments(unreadFilter);
+      .filter((memberId) => memberId !== userId))));
+  const unreadBranches = rooms.map((room) => {
+    const member = room.members.find((item) => idStr(item.user) === userId)!;
     return {
-      id: idStr(r._id),
-      type: r.type,
+      room: room._id,
+      ...(member.lastReadMessageId ? { _id: { $gt: member.lastReadMessageId } } : {}),
+    };
+  });
+
+  const [peerUsers, lastRows, unreadRows] = await Promise.all([
+    peerIds.length
+      ? UserModel.find({ _id: { $in: peerIds } }).select("_id username").lean()
+      : Promise.resolve([]),
+    MessageModel.aggregate([
+      { $match: { room: { $in: roomIds }, deletedAt: null } },
+      // The existing { room: 1, _id: -1 } index supports this order.
+      { $sort: { room: 1, _id: -1 } },
+      { $group: {
+        _id: "$room",
+        type: { $first: "$type" },
+        content: { $first: "$content" },
+        createdAt: { $first: "$createdAt" },
+        sender: { $first: "$sender" },
+      } },
+      { $lookup: { from: "users", localField: "sender", foreignField: "_id", as: "senderDoc" } },
+      { $unwind: { path: "$senderDoc", preserveNullAndEmptyArrays: true } },
+      { $project: {
+        _id: 0,
+        roomId: "$_id",
+        type: 1,
+        content: 1,
+        createdAt: 1,
+        senderName: "$senderDoc.username",
+      } },
+    ]),
+    MessageModel.aggregate([
+      { $match: {
+        deletedAt: null,
+        sender: { $ne: new Types.ObjectId(userId) },
+        $or: unreadBranches,
+      } },
+      { $group: { _id: "$room", unread: { $sum: 1 } } },
+    ]),
+  ]);
+
+  const peerNames = new Map(peerUsers.map((user) => [idStr(user._id), user.username as string]));
+  const lastByRoom = new Map(lastRows.map((row: any) => [idStr(row.roomId), row]));
+  const unreadByRoom = new Map(unreadRows.map((row: any) => [idStr(row._id), Number(row.unread)]));
+
+  const rows = rooms.map((room) => {
+    const me = room.members.find((member) => idStr(member.user) === userId)!;
+    const peerId = room.type === "direct"
+      ? room.members.map((member) => idStr(member.user)).find((memberId) => memberId !== userId)
+      : undefined;
+    const last = lastByRoom.get(idStr(room._id));
+    return {
+      id: idStr(room._id),
+      type: room.type,
       direct_peer_name: peerId ? peerNames.get(peerId) ?? null : null,
-      encrypted_metadata: r.encryptedMetadata,
-      key_envelopes: r.keyEnvelopes?.filter((item) => idStr(item.user) === userId).map((item) => ({ key_version: item.keyVersion, wrapped_key: item.wrappedKey })) ?? [],
-      current_key_version: r.currentKeyVersion,
+      encrypted_metadata: room.encryptedMetadata,
+      key_envelopes: room.keyEnvelopes?.filter((item) => idStr(item.user) === userId).map((item) => ({ key_version: item.keyVersion, wrapped_key: item.wrappedKey })) ?? [],
+      current_key_version: room.currentKeyVersion,
       role: me.role,
       is_muted: me.isMuted,
       last_content: last?.type === "system" ? last.content : (last ? "Encrypted message" : null),
       last_type: last?.type ?? null,
       last_at: last?.createdAt ?? null,
-      last_sender: last?.sender?.username ?? null,
-      unread,
-      sortKey: last?.createdAt ?? r.createdAt,
+      last_sender: last?.senderName ?? null,
+      unread: unreadByRoom.get(idStr(room._id)) ?? 0,
+      sortKey: last?.createdAt ?? room.createdAt,
     };
-  }));
+  });
   rows.sort((a, b) => +new Date(b.sortKey) - +new Date(a.sortKey));
   return rows.map(({ sortKey: _omit, ...rest }) => rest);
 }
-
 export async function getRoomDetails(roomId: string, viewerId: string) {
   const room = (await RoomModel.findById(roomId).lean()) as unknown as RoomDoc | null;
   if (!room) return null;

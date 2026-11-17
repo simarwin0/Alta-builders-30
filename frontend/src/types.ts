@@ -36,6 +36,7 @@ export interface Message {
   encryption_version: number | null;
   reply_to_id: string | null;
   created_at: string;
+  edited_at?: string | null;
   display_content?: string;
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
 import { cacheRoomKey, clearRoomKeyCache, createInvitationToken, createRoomKey, decryptRoomMetadata, decryptRoomText, encryptInvitationLabel, encryptRoomMetadataWithKey, encryptRoomText, unwrapRoomKey, wrapRoomKeyForUser } from "../crypto";
@@ -37,6 +37,32 @@ async function decryptMessage(
   }
 }
 
+function canReuseMessageDecryption(previous: Message, next: Message): boolean {
+  return previous.type === next.type
+    && previous.encrypted_content === next.encrypted_content
+    && previous.encrypted_iv === next.encrypted_iv
+    && previous.encryption_version === next.encryption_version
+    && previous.content === next.content
+    && previous.edited_at === next.edited_at;
+}
+
+function sameMessageMetadata(previous: Message, next: Message): boolean {
+  return previous.sender_id === next.sender_id
+    && previous.sender_name === next.sender_name
+    && previous.reply_to_id === next.reply_to_id
+    && previous.created_at === next.created_at
+    && previous.edited_at === next.edited_at;
+}
+
+const MessageBubble = memo(function MessageBubble({ message, isMine }: { message: Message; isMine: boolean }) {
+  return (
+    <div className={`bubble ${isMine ? "bubble-mine" : "bubble-theirs"}`}>
+      <small className="muted">{isMine ? "You" : (message.sender_name ?? "Member")}</small>
+      <p>{message.display_content ?? "Encrypted message"}</p>
+    </div>
+  );
+});
+
 type PublicKeyResponse = { public_key: JsonWebKey };
 type UserLite = { id: string; username: string; status: "online" | "away" | "offline" };
 
@@ -62,6 +88,7 @@ export default function ChatRoomPage() {
   const [pendingRequests, setPendingRequests] = useState<Array<{ user_id: string; username: string; status: string }>>([]);
   const [inviteBusy, setInviteBusy] = useState(false);
   const bottom = useRef<HTMLDivElement>(null);
+  const messagesRef = useRef<Message[]>([]);
 
   async function fetchLatestRoomWithCurrentKey() {
     const latest = await api<RoomDetails>(`/rooms/${roomId}`);
@@ -93,12 +120,15 @@ export default function ChatRoomPage() {
       setRoom(details);
       setRoomName(getRoomDisplayName(details, encryptedName));
       setKeyVersion(details.current_key_version);
+      messagesRef.current = readable;
       setMessages(readable);
       setError("");
     } catch (err) { setError((err as Error).message); }
   }
 
   useEffect(() => {
+    messagesRef.current = [];
+    setMessages([]);
     let active = true;
     let poll = 0;
     let refreshInFlight = false;
@@ -140,13 +170,26 @@ export default function ChatRoomPage() {
         setKeyVersion(details.current_key_version);
 
         const latest = await api<Message[]>(`/rooms/${roomId}/messages?limit=30`);
-        const readable = await Promise.all(latest.map((message) => decryptMessage(roomId, message, details.type)));
+        const cachedById = new Map(messagesRef.current.map((message) => [message.id, message]));
+        const readable = await Promise.all(latest.map(async (message) => {
+          const cached = cachedById.get(message.id);
+          if (cached && canReuseMessageDecryption(cached, message)) {
+            return sameMessageMetadata(cached, message)
+              ? cached
+              : { ...cached, ...message, display_content: cached.display_content };
+          }
+          return decryptMessage(roomId, message, details.type);
+        }));
         if (!active) return;
-        setMessages((previous) => {
-          const byId = new Map(previous.map((message) => [message.id, message]));
-          for (const message of readable) byId.set(message.id, message);
-          return [...byId.values()].sort((a, b) => a.created_at.localeCompare(b.created_at));
-        });
+        const byId = new Map(messagesRef.current.map((message) => [message.id, message]));
+        for (const message of readable) byId.set(message.id, message);
+        const nextMessages = [...byId.values()].sort((a, b) => a.created_at.localeCompare(b.created_at));
+        const unchanged = nextMessages.length === messagesRef.current.length
+          && nextMessages.every((message, index) => message === messagesRef.current[index]);
+        if (!unchanged) {
+          messagesRef.current = nextMessages;
+          setMessages(nextMessages);
+        }
         setError("");
       } catch {
         // Keep the last successfully loaded room during brief network drops.
@@ -165,8 +208,8 @@ export default function ChatRoomPage() {
         connection?.saveData || ["slow-2g", "2g"].includes(connection?.effectiveType ?? ""),
       );
       const refreshInterval = isConstrainedNetwork
-        ? 12000
-        : window.matchMedia("(max-width: 640px)").matches ? 7000 : 5000;
+        ? 20000
+        : window.matchMedia("(max-width: 640px)").matches ? 12000 : 8000;
       poll = window.setInterval(() => {
         if (document.visibilityState === "visible") void refreshRoomAndMessages();
       }, refreshInterval);
@@ -187,11 +230,11 @@ export default function ChatRoomPage() {
     };
   }, [roomId]);
 
+  const lastMessageId = messages[messages.length - 1]?.id;
   useEffect(() => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     bottom.current?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "end" });
-    const last = messages[messages.length - 1];
-  }, [messages.length]);
+  }, [lastMessageId]);
 
   useEffect(() => {
     const query = memberSearch.trim();
@@ -217,7 +260,9 @@ export default function ChatRoomPage() {
     try {
       const older = await api<Message[]>(`/rooms/${roomId}/messages?before=${messages[0].id}`);
       const readable = await Promise.all(older.map((message) => decryptMessage(roomId, message, room?.type)));
-      setMessages((prev) => [...readable, ...prev]);
+      const next = [...readable, ...messagesRef.current];
+      messagesRef.current = next;
+      setMessages(next);
     } catch (err) { setError((err as Error).message); }
   }
 
@@ -265,7 +310,10 @@ export default function ChatRoomPage() {
       }
       if (!saved) throw new Error("Your message could not be sent. Please try again.");
       const readable = await decryptMessage(roomId, saved, room?.type);
-      setMessages((previous) => [...previous.filter((message) => message.id !== readable.id), readable]);
+      const next = [...messagesRef.current.filter((message) => message.id !== readable.id), readable]
+        .sort((a, b) => a.created_at.localeCompare(b.created_at));
+      messagesRef.current = next;
+      setMessages(next);
       setText("");
       setError("");
     } catch (err) {
@@ -403,15 +451,13 @@ export default function ChatRoomPage() {
       {error && <p className="error" role="alert">{error}</p>}
       <section className="messages">
         <button className="link" onClick={loadOlder}>Load older messages</button>
-        {messages.map((m) => {
-          const isMine = Boolean(room?.my_user_id && m.sender_id === room.my_user_id);
-          return (
-            <div key={m.id} className={`bubble ${isMine ? "bubble-mine" : "bubble-theirs"}`}>
-              <small className="muted">{isMine ? "You" : (m.sender_name ?? "Member")}</small>
-              <p>{m.display_content ?? "Encrypted message"}</p>
-            </div>
-          );
-        })}
+        {messages.map((message) => (
+          <MessageBubble
+            key={message.id}
+            message={message}
+            isMine={Boolean(room?.my_user_id && message.sender_id === room.my_user_id)}
+          />
+        ))}
         <div ref={bottom} />
       </section>
       <form className="composer" onSubmit={send}>

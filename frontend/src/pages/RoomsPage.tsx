@@ -22,25 +22,57 @@ export default function RoomsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const loadInFlight = useRef(false);
+  const roomsRef = useRef<Room[]>([]);
 
   const load = async () => {
     if (loadInFlight.current) return;
     loadInFlight.current = true;
     try {
       const records = await api<Room[]>("/rooms");
+      const previousById = new Map(roomsRef.current.map((room) => [room.id, room]));
       const unlocked = await Promise.all(records.map(async (room) => {
+        const previous = previousById.get(room.id);
         try {
           for (const envelope of room.key_envelopes) await unwrapRoomKey(room.id, envelope.wrapped_key, envelope.key_version);
           if (room.type === "direct" && room.direct_peer_name) {
-            return { ...room, name: room.direct_peer_name };
+            return previous?.name === room.direct_peer_name ? { ...room, name: previous.name } : { ...room, name: room.direct_peer_name };
           }
+          const metadataUnchanged = previous
+            && previous.current_key_version === room.current_key_version
+            && previous.encrypted_metadata.iv === room.encrypted_metadata.iv
+            && previous.encrypted_metadata.ciphertext === room.encrypted_metadata.ciphertext;
+          if (metadataUnchanged && previous.name) return { ...room, name: previous.name };
           const meta = await decryptRoomMetadata(room.id, room.encrypted_metadata, room.current_key_version);
           return { ...room, name: meta.name };
         } catch {
-          return { ...room, name: "Locked encrypted room" };
+          return { ...room, name: previous?.name ?? "Locked encrypted room" };
         }
       }));
-      setRooms(unlocked);
+      const changed = unlocked.length !== roomsRef.current.length || unlocked.some((room, index) => {
+        const previous = roomsRef.current[index];
+        if (!previous) return true;
+        const sameEnvelopes = previous.key_envelopes.length === room.key_envelopes.length
+          && previous.key_envelopes.every((envelope, i) =>
+            envelope.key_version === room.key_envelopes[i]?.key_version
+            && envelope.wrapped_key === room.key_envelopes[i]?.wrapped_key);
+        return previous.id !== room.id
+          || previous.name !== room.name
+          || previous.type !== room.type
+          || previous.current_key_version !== room.current_key_version
+          || previous.encrypted_metadata.iv !== room.encrypted_metadata.iv
+          || previous.encrypted_metadata.ciphertext !== room.encrypted_metadata.ciphertext
+          || !sameEnvelopes
+          || previous.role !== room.role
+          || previous.is_muted !== room.is_muted
+          || previous.last_content !== room.last_content
+          || previous.last_sender !== room.last_sender
+          || previous.last_at !== room.last_at
+          || previous.unread !== room.unread;
+      });
+      if (changed) {
+        roomsRef.current = unlocked;
+        setRooms(unlocked);
+      }
       setError("");
     } catch (err) { setError((err as Error).message); }
     finally { loadInFlight.current = false; }
@@ -56,7 +88,7 @@ export default function RoomsPage() {
     // Reduce background API traffic and catch up immediately when the user returns.
     const refresh = window.setInterval(() => {
       if (document.visibilityState === "visible") void load();
-    }, 15000);
+    }, 30000);
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") void load();
     };
