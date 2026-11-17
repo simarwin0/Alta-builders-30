@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { api, clearSession, markAuthenticated } from "../api";
+import { api, clearSession, markAuthenticated, waitForApiReady } from "../api";
 import { createAccountBundle, unlockAccount } from "../crypto";
 
 const SAVED_USERNAME_KEY = "alta_saved_username";
@@ -33,20 +33,34 @@ export default function AuthPage() {
   }));
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState("");
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, [k]: e.target.value }));
 
   async function submit(e: React.FormEvent) {
-    e.preventDefault(); setError(""); setBusy(true);
+    e.preventDefault();
+    setError("");
+
+    if (mode === "signup") {
+      const passwordError = validateSignupPassword(form.password);
+      if (passwordError) { setError(passwordError); return; }
+      if (!window.isSecureContext || !window.crypto?.subtle) {
+        setError("Secure password setup is not available in this browser tab. Open the HTTPS site in a modern browser and try again.");
+        return;
+      }
+    }
+
+    setBusy(true);
+    setConnectionStatus("Checking the secure server…");
     const rememberThisDevice = mode === "signup"
       ? rememberMe
       : localStorage.getItem(REMEMBER_DEVICE_KEY) === "1";
     try {
+      // Render's free service can sleep while idle. Wait for both the API and
+      // its MongoDB health check before submitting login/signup credentials.
+      await waitForApiReady(setConnectionStatus);
+
       if (mode === "signup") {
-        const passwordError = validateSignupPassword(form.password);
-        if (passwordError) { setError(passwordError); return; }
-        if (!window.isSecureContext || !window.crypto?.subtle) {
-          throw new Error("Secure password setup is not available in this browser tab. Open the HTTPS site in a modern browser and try again.");
-        }
+        setConnectionStatus("Secure server ready. Creating your encrypted keys…");
         const bundle = await createAccountBundle(form.password, {
           email: form.email.trim().toLowerCase(), displayName: form.displayName.trim() || form.username, bio: "", avatarUrl: "",
         });
@@ -56,6 +70,7 @@ export default function AuthPage() {
         });
         await unlockAccount(response.user.id, form.password, { cryptoSalt: bundle.cryptoSalt, cryptoPublicKey: bundle.cryptoPublicKey, wrappedPrivateKey: bundle.wrappedPrivateKey });
       } else {
+        setConnectionStatus("Secure server ready. Signing in and unlocking your keys…");
         const response = await api<AuthResponse>("/auth/login", { method: "POST", body: JSON.stringify({ username: form.username, password: form.password, rememberMe: rememberThisDevice }) });
         await unlockAccount(response.user.id, form.password, { cryptoSalt: response.user.crypto_salt, cryptoPublicKey: response.user.crypto_public_key, wrappedPrivateKey: response.user.wrapped_private_key });
       }
@@ -68,10 +83,15 @@ export default function AuthPage() {
       }
       markAuthenticated(rememberThisDevice);
       setForm((prev) => ({ ...prev, password: "", adminBootstrapToken: "" }));
-      const destination = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from; nav(destination?.pathname ? destination.pathname + (destination.search ?? "") + (destination.hash ?? "") : "/");
+      const destination = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from;
+      nav(destination?.pathname ? destination.pathname + (destination.search ?? "") + (destination.hash ?? "") : "/");
     } catch (err) {
-      clearSession(); setError((err as Error).message || "Unable to unlock encrypted account data");
-    } finally { setBusy(false); }
+      clearSession();
+      setError((err as Error).message || "Unable to unlock encrypted account data");
+    } finally {
+      setBusy(false);
+      setConnectionStatus("");
+    }
   }
 
   return (
@@ -97,8 +117,9 @@ export default function AuthPage() {
             </span>
           </label>
         )}
+        {busy && connectionStatus && <p className="auth-status" role="status" aria-live="polite">{connectionStatus}</p>}
         {error && <p className="error" role="alert">{error}</p>}
-        <button type="submit" disabled={busy}>{busy ? "Securing account…" : mode === "login" ? "Log in" : "Create encrypted account"}</button>
+        <button type="submit" disabled={busy}>{busy ? "Connecting securely…" : mode === "login" ? "Log in" : "Create encrypted account"}</button>
       </form>
       <button className="link" onClick={() => { setError(""); setMode(mode === "login" ? "signup" : "login"); }}>
         {mode === "login" ? "New here? Create account" : "Have an account? Log in"}
