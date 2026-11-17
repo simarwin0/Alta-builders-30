@@ -1,0 +1,39 @@
+name: AI Code Reviewer CI
+
+on:
+  push:
+    branches: [feature/ai-code-reviewer]
+    paths:
+      - "ai-code-reviewer/**"
+      - ".github/workflows/ai-code-reviewer.yml"
+  pull_request:
+    paths:
+      - "ai-code-reviewer/**"
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-code-reviewer/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run build
+      - run: npm test
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-code-reviewer/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run build
