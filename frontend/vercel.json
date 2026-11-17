@@ -9,6 +9,10 @@
       "destination": "https://alta-chat-backend-production.up.railway.app/socket.io"
     },
     {
+      "source": "/socket.io/",
+      "destination": "https://alta-chat-backend-production.up.railway.app/socket.io/"
+    },
+    {
       "source": "/socket.io/:path*",
       "destination": "https://alta-chat-backend-production.up.railway.app/socket.io/:path*"
     },
