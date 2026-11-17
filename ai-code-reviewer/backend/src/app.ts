@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { z } from "zod";
 import { reviewCode, testLlmConnection } from "./reviewer/service.js";
 import { resolveSource } from "./input/source.js";
@@ -25,6 +25,17 @@ app.use(rateLimit({
   legacyHeaders: false
 }));
 
+const perUserReviewLimit = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60000),
+  limit: Number(process.env.USER_RATE_LIMIT_MAX ?? 5),
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const userId = (req as AuthenticatedRequest).userId;
+    return userId ? `user:${userId}` : ipKeyGenerator(req.ip ?? "unknown");
+  }
+});
+
 const analyzeInput = z.object({
   code: z.string().max(maxCodeChars).optional(),
   githubUrl: z.string().url().max(2048).optional(),
@@ -46,7 +57,7 @@ app.post("/api/test-llm", async (_req, res) => {
   }
 });
 
-app.post("/api/reviews/analyze", requireAuth, async (req: AuthenticatedRequest, res) => {
+app.post("/api/reviews/analyze", requireAuth, perUserReviewLimit, async (req: AuthenticatedRequest, res) => {
   const input = analyzeInput.safeParse(req.body);
   if (!input.success) {
     return res.status(400).json({ error: "Invalid review input", details: input.error.flatten() });
