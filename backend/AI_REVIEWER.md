@@ -5,7 +5,7 @@ These routes are mounted in the existing Track A Express API so they share its d
 ## Routes
 - `POST /api/reviews/test-llm` — authenticated OpenAI connectivity check.
 - `POST /api/reviews/analyze` — authenticated code or public GitHub file analysis; persists the validated report for the signed-in user.
-- `GET /api/reviews/history?page=1&limit=20` — authenticated, user-scoped history; source code is excluded from list responses.
+- `GET /api/reviews/history?page=1&limit=20` — authenticated, user-scoped history; source code is excluded from list responses.\n- `GET /api/reviews/:reviewId` — retrieve one saved report owned by the current user.\n- `DELETE /api/reviews/:reviewId` — delete only a report owned by the current user.
 
 ## Request bodies
 Pasted code:
