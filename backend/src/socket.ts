@@ -47,7 +47,14 @@ export function attachSocket(httpServer: HttpServer) {
     allowRequest: (req, callback) => {
       const origin = req.headers.origin;
       const address = req.socket.remoteAddress ?? "unknown";
-      const originAllowed = origin ? origin === config.clientOrigin : config.env !== "production";
+      // Browser polling may omit Origin on same-origin GETs. In production,
+      // allow that path only when the request also carries the HttpOnly session
+      // cookie; the namespace middleware below still verifies its signature,
+      // expiry and session-version before the socket can connect.
+      const hasSessionCookie = Boolean(readCookie(req.headers.cookie, SESSION_COOKIE));
+      const originAllowed = origin
+        ? origin === config.clientOrigin
+        : config.env !== "production" || hasSessionCookie;
       callback(null, originAllowed && allowHandshake(address));
     },
     maxHttpBufferSize: 64 * 1024,
