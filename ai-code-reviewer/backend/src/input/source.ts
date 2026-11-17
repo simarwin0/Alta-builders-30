@@ -36,7 +36,7 @@ function toRawGithubUrl(input: string): { url: URL; filename: string } {
     return { url: new URL(parsed.toString()), filename };
   }
   if (parsed.hostname !== "github.com" || segments.length < 5 || segments[2] !== "blob") {
-    throw new Error("Use a github.com owner/repository/blob/branch/file URL or raw.githubusercontent.com URL");
+    throw new Error("Use a GitHub.com owner/repository/blob/branch/file URL or raw.githubusercontent.com URL");
   }
 
   const [owner, repository, , ref, ...fileParts] = segments;
