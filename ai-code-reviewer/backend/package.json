@@ -7,7 +7,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "node --import tsx --test src/**/*.test.ts"
+    "test": "node --import tsx --test src/*.test.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -15,12 +15,15 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5",
     "openai": "^5.20.0",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.0",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.13.4",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"
