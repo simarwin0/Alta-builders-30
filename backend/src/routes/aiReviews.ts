@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { createHash } from "node:crypto";
 import { Types } from "mongoose";
 import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
@@ -8,6 +9,9 @@ import { analyzeSource, resolveReviewSource, testReviewerConnection } from "../s
 
 export const aiReviewsRouter = Router();
 const maxChars = Number(process.env.MAX_REVIEW_CODE_CHARS ?? 30000);
+const reviewCache = new Map<string, { expiresAt: number; result: Awaited<ReturnType<typeof analyzeSource>> }>();
+const REVIEW_CACHE_TTL_MS = 5 * 60 * 1000;
+const REVIEW_CACHE_MAX_ENTRIES = 100;
 const reviewLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 5,
@@ -41,7 +45,20 @@ aiReviewsRouter.post("/analyze", requireAuth, reviewLimiter, async (req: AuthedR
   try {
     const source = await resolveReviewSource(parsed.data);
     if (source.code.length > maxChars) return res.status(413).json({ error: "Code exceeds the configured size limit" });
-    const result = await analyzeSource(source.code, source.language, source.filename);
+    const cacheKey = createHash("sha256")
+      .update(`${req.userId}\0${source.language}\0${source.code}`)
+      .digest("hex");
+    const cached = reviewCache.get(cacheKey);
+    const cacheHit = Boolean(cached && cached.expiresAt > Date.now());
+    const result = cacheHit && cached ? cached.result : await analyzeSource(source.code, source.language, source.filename);
+    if (!cacheHit) {
+      reviewCache.set(cacheKey, { expiresAt: Date.now() + REVIEW_CACHE_TTL_MS, result });
+      if (reviewCache.size > REVIEW_CACHE_MAX_ENTRIES) {
+        const oldestKey = reviewCache.keys().next().value;
+        if (oldestKey) reviewCache.delete(oldestKey);
+      }
+    }
+    const usage = cacheHit ? null : result.usage;
     const saved = await AiReviewModel.create({
       userId: req.userId,
       filename: source.filename,
@@ -50,10 +67,10 @@ aiReviewsRouter.post("/analyze", requireAuth, reviewLimiter, async (req: AuthedR
       code: source.code,
       report: result.report,
       model: result.model,
-      usage: result.usage
+      usage
     });
-    if (result.usage) console.info("ai_review_usage", { model: result.model, ...result.usage });
-    return res.json({ success: true, reviewId: saved.id, source: { filename: source.filename, language: source.language, sourceUrl: source.sourceUrl }, ...result });
+    if (usage) console.info("ai_review_usage", { model: result.model, ...usage });
+    return res.json({ success: true, reviewId: saved.id, cached: cacheHit, source: { filename: source.filename, language: source.language, sourceUrl: source.sourceUrl }, ...result, usage });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Review failed";
     if (/GitHub|URL|empty|exactly one|size limit|Code cannot/i.test(message)) return res.status(400).json({ error: message });
