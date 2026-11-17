@@ -21,7 +21,7 @@ An AI-assisted code review platform for detecting bugs, security risks, and main
 - [x] Fifteen adversarial evaluation fixtures authored (live scoring still pending)
 - [x] User-scoped review detail and deletion APIs
 - [x] Short-lived per-user result cache and token usage logging
-- [ ] Confirm the latest CI run is green for all three packages
+- [x] CI build and unit tests passed for standalone reviewer backend, integrated Track A backend, and frontend (GitHub Actions run #31)
 - [ ] Run live OpenAI tests and verify 10 prompt fixtures
 - [ ] Complete 15-case evaluation and publish results
 - [ ] Connect production MongoDB and configure deployment secrets
