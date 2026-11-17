@@ -80,6 +80,16 @@ aiReviewsRouter.post("/analyze", requireAuth, reviewLimiter, async (req: AuthedR
   }
 });
 
+aiReviewsRouter.get("/history", requireAuth, async (req: AuthedRequest, res) => {
+  const page = Math.max(1, Math.min(1000, Number(req.query.page) || 1));
+  const limit = Math.max(1, Math.min(50, Number(req.query.limit) || 20));
+  const [items, total] = await Promise.all([
+    AiReviewModel.find({ userId: req.userId }).select("-code").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    AiReviewModel.countDocuments({ userId: req.userId })
+  ]);
+  return res.json({ items, page, limit, total, pages: Math.ceil(total / limit) });
+});
+
 aiReviewsRouter.get("/:reviewId", requireAuth, async (req: AuthedRequest, res) => {
   if (!Types.ObjectId.isValid(req.params.reviewId)) return res.status(404).json({ error: "Review not found" });
   const item = await AiReviewModel.findOne({ _id: req.params.reviewId, userId: req.userId }).select("-code").lean();
@@ -94,12 +104,3 @@ aiReviewsRouter.delete("/:reviewId", requireAuth, async (req: AuthedRequest, res
   return res.status(204).end();
 });
 
-aiReviewsRouter.get("/history", requireAuth, async (req: AuthedRequest, res) => {
-  const page = Math.max(1, Math.min(1000, Number(req.query.page) || 1));
-  const limit = Math.max(1, Math.min(50, Number(req.query.limit) || 20));
-  const [items, total] = await Promise.all([
-    AiReviewModel.find({ userId: req.userId }).select("-code").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
-    AiReviewModel.countDocuments({ userId: req.userId })
-  ]);
-  return res.json({ items, page, limit, total, pages: Math.ceil(total / limit) });
-});
