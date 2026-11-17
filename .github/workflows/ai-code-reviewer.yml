@@ -5,6 +5,7 @@ on:
     branches: [feature/ai-code-reviewer]
     paths:
       - "ai-code-reviewer/**"
+      - "backend/**"
       - ".github/workflows/ai-code-reviewer.yml"
   pull_request:
     paths:
