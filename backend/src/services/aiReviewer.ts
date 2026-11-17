@@ -150,7 +150,21 @@ export async function resolveReviewSource(input: { code?: string; githubUrl?: st
   if (!response.ok) throw new Error(response.status === 404 ? "GitHub file not found or repository is private" : "Unable to fetch GitHub file");
   const contentLength = Number(response.headers.get("content-length") ?? 0);
   if (contentLength > maxChars * 4) throw new Error("GitHub file exceeds the configured size limit");
-  const code = await response.text();
+  if (!response.body) throw new Error("GitHub returned an empty response");
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let byteCount = 0;
+  while (true) {
+    const part = await reader.read();
+    if (part.done) break;
+    byteCount += part.value.byteLength;
+    if (byteCount > maxChars * 4) {
+      await reader.cancel();
+      throw new Error("GitHub file exceeds the configured size limit");
+    }
+    chunks.push(part.value);
+  }
+  const code = Buffer.concat(chunks.map(chunk => Buffer.from(chunk))).toString("utf8");
   if (!code.trim()) throw new Error("The GitHub file is empty");
   if (code.length > maxChars) throw new Error("GitHub file exceeds the configured size limit");
   return { code, filename, language: input.language?.trim() || inferLanguage(filename), sourceUrl: input.githubUrl! };
