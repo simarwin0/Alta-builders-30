@@ -79,12 +79,15 @@ Authenticated and paginated. Returns only records owned by the current user.
 8. Make retention explicit. Users should be able to delete saved reviews; do not claim database encryption is end-to-end encryption.
 9. Validate all model output. Treat the model as fallible and label findings with confidence; the report is advisory, not a substitute for human review.
 
-## Deployment
+## Production deployment topology
 
-- **Backend**: Render Node web service, root directory `ai-code-reviewer/backend`, build `npm ci && npm run build`, start `npm start`.
-- **Frontend**: Vercel project, root directory `ai-code-reviewer/frontend`, build `npm run build`, output `dist`.
-- Configure secrets in Render environment settings. Frontend receives only the public backend base URL.
-- Configure production CORS to the exact Vercel origin.
+The production reviewer routes are mounted inside the existing Track A API at `backend/src/routes/aiReviews.ts`. This is intentional: Track A uses a host-only `__Host-chat_session` HttpOnly cookie, so a separate Render hostname cannot receive that cookie. The shared backend preserves the exact authentication/session-version checks and existing CORS/CSRF protections.
+
+- **Backend**: deploy the existing Track A Render service from the repository root `render.yaml` (its build/start commands use `backend/`). The blueprint now includes `OPENAI_API_KEY`, `OPENAI_MODEL`, and `MAX_REVIEW_CODE_CHARS`.
+- **Frontend**: Vercel project root `ai-code-reviewer/frontend`, build `npm run build`, output `dist`.
+- Set `VITE_API_BASE_URL` to the same Render API origin used by Track A login. Do not point production at the standalone reviewer service.
+- Set Render `CLIENT_ORIGIN` to the exact Vercel origin. Keep the OpenAI key only in Render.
+- `ai-code-reviewer/backend` is an isolated local development/test harness; production authentication and persistence use the integrated Track A backend.
 
 ## Initial decisions
 
