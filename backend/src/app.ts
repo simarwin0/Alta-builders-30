@@ -11,6 +11,7 @@ import { invitationsRouter } from "./routes/invitations.js";
 import { roomsRouter } from "./routes/rooms.js";
 import { usersRouter } from "./routes/users.js";
 import { notificationsRouter } from "./routes/notifications.js";
+import { aiReviewsRouter } from "./routes/aiReviews.js";
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -64,6 +65,8 @@ export function createApp() {
   app.use("/api/notifications", notificationsRouter);
   app.use("/api/rooms", roomsRouter);
   app.use("/api/invitations", invitationsRouter);
+  // Reviewer endpoints share this API origin so Track A's host-only HttpOnly JWT cookie remains valid.
+  app.use("/api/reviews", aiReviewsRouter);
 
   app.use((err: Error & { status?: number; type?: string }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (err.status && err.status >= 400 && err.status < 500) {
