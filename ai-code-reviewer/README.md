@@ -94,10 +94,10 @@ The analysis/history routes use the existing Track A session cookie and JWT issu
 ## Deployment
 
 ### Render
-Use the repository's `ai-code-reviewer/render.yaml` blueprint. Set `OPENAI_API_KEY`, `MONGODB_URI`, `JWT_SECRET` (same secret as Track A), and `FRONTEND_ORIGIN` in Render's environment settings.
+Deploy the existing Track A API using the repository-root `render.yaml` blueprint. The AI review endpoints are mounted inside that same API process so the host-only Track A JWT cookie works. Add `OPENAI_API_KEY` in Render's environment settings and keep it server-side. The existing `MONGODB_URI` and `JWT_SECRET` are reused; do not create a second user database or a second JWT secret for production.
 
 ### Vercel
-Import this repository and set the project root to `ai-code-reviewer/frontend`. Set `VITE_API_BASE_URL` to the deployed Render API URL. The frontend must use the deployed Track A-compatible auth cookie/session.
+Import this repository and set the project root to `ai-code-reviewer/frontend`. Set `VITE_API_BASE_URL` to the exact same Render API origin used by Track A login. Set the Render `CLIENT_ORIGIN` to the Vercel deployment origin. The standalone `ai-code-reviewer/backend` is for local isolated development only; do not deploy it as a separate production hostname while relying on the host-only Track A cookie.
 
 ## Evaluation
 Do not mark model accuracy tests as passed until they have been run with a configured API key. The 10 prompt fixtures and 15 adversarial evaluation cases will be added with measured outcomes.
