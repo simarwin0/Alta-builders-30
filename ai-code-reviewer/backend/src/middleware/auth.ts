@@ -2,7 +2,13 @@ import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import mongoose, { Schema } from "mongoose";
 
-export interface AuthenticatedRequest extends Request { userId?: string; }
+declare global {
+  namespace Express {
+    interface Request { userId?: string; }
+  }
+}
+
+export type AuthenticatedRequest = Request;
 
 const sessionUserSchema = new Schema({
   sessionVersion: { type: Number, default: 0 }
@@ -20,7 +26,7 @@ function cookieValue(header: string | undefined, name: string): string | null {
   return null;
 }
 
-export async function requireAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const cookieName = process.env.NODE_ENV === "production" ? "__Host-chat_session" : "chat_session";
   const token = cookieValue(req.headers.cookie, cookieName);
   if (!token || !process.env.JWT_SECRET) return res.status(401).json({ error: "Unauthorized" });
