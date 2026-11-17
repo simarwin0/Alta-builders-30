@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/railway-health-check",
+      "destination": "https://alta-chat-backend-production.up.railway.app/api/health"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://alta-chat-backend.onrender.com/api/:path*"
     },
