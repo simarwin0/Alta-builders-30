@@ -14,8 +14,8 @@ An AI-assisted code review platform for detecting bugs, security risks, and main
 - [x] Track A-compatible JWT cookie/session validation
 - [x] MongoDB review persistence and user-scoped history endpoint
 - [x] React/Vite responsive reviewer dashboard
-- [x] Initial input validation tests authored
-- [ ] Install dependencies and run TypeScript build/tests
+- [x] Initial input validation and report-schema tests authored\n- [x] Track A sign-in screen and saved history loading\n- [x] Production review routes mounted in the shared Track A API\n- [x] Ten baseline review fixtures authored (live model verification still pending)
+- [ ] Confirm the latest CI run is green for all three packages
 - [ ] Run live OpenAI tests and verify 10 prompt fixtures
 - [ ] Complete 15-case evaluation and publish results
 - [ ] Connect production MongoDB and configure deployment secrets
@@ -52,21 +52,21 @@ ai-code-reviewer/
 
 ### Backend
 1. Install Node.js 20 or newer.
-2. Open `ai-code-reviewer/backend`.
+2. Open the existing Track A `backend/` directory at the repository root.
 3. Run `npm install`.
-4. Copy `.env.example` to `.env`.
-5. Set `OPENAI_API_KEY`, `MONGODB_URI`, and the same `JWT_SECRET` used by Track A.
-6. Set `FRONTEND_ORIGIN=http://localhost:5173`.
-7. Run `npm run dev`.
+4. Copy `backend/.env.example` to `backend/.env`.
+5. Keep the existing Track A `MONGODB_URI` and `JWT_SECRET`; add `OPENAI_API_KEY` and optionally `OPENAI_MODEL=gpt-6-luna`.
+6. Set `CLIENT_ORIGIN=http://localhost:5173`.
+7. Run `npm run dev` (API on port 4000).
 
-The API listens on port 4001 by default. Check `GET /health`. Use `POST /api/test-llm` to verify OpenAI connectivity.
+Check `GET /health`, then use the authenticated `POST /api/reviews/test-llm` to verify OpenAI connectivity.
 
 ### Frontend
 1. Open `ai-code-reviewer/frontend`.
 2. Run `npm install`.
 3. Copy `.env.example` to `.env`.
-4. Set `VITE_API_BASE_URL=http://localhost:4001`.
-5. Run `npm run dev`.
+4. Set `VITE_API_BASE_URL=http://localhost:4000`.
+5. Run `npm run dev` and sign in with your existing Track A username/password.
 
 ## API
 - `GET /health` — service health.
