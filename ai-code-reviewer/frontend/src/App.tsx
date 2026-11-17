@@ -24,7 +24,24 @@ export default function App() {
   const [error, setError] = useState("");
   const [activeFilter, setActiveFilter] = useState("All findings");
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [user, setUser] = useState<{ username?: string } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+
   useEffect(() => {
+    let active = true;
+    fetch(`${API}/api/users/me`, { credentials: "include" })
+      .then(response => response.ok ? response.json() : null)
+      .then(data => { if (active) { setUser(data); setAuthChecked(true); } })
+      .catch(() => { if (active) setAuthChecked(true); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
     let active = true;
     fetch(`${API}/api/reviews/history?page=1&limit=8`, { credentials: "include" })
       .then(response => response.ok ? response.json() : null)
@@ -38,7 +55,32 @@ export default function App() {
       })
       .catch(() => undefined);
     return () => { active = false; };
-  }, []);
+  }, [user]);
+
+  async function signIn() {
+    setAuthError(""); setAuthLoading(true);
+    try {
+      const response = await fetch(`${API}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username, password, rememberMe: true })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Sign in failed");
+      setUser(data.user);
+      setPassword("");
+    } catch (e) {
+      setAuthError(e instanceof Error ? e.message : "Unable to sign in");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function signOut() {
+    await fetch(`${API}/api/auth/logout`, { method: "POST", credentials: "include" }).catch(() => undefined);
+    setUser(null); setHistory([]); setReport(null);
+  }
   const counts = useMemo(() => ({
     high: report?.findings.filter(f => f.severity === "High").length ?? 0,
     medium: report?.findings.filter(f => f.severity === "Medium").length ?? 0,
@@ -61,6 +103,21 @@ export default function App() {
     finally { setLoading(false); }
   }
 
+  if (!authChecked) {
+    return <div className="auth-shell"><div className="auth-card"><div className="brand-mark"><Code2 size={22}/></div><h1>Connecting your workspace</h1><p>Checking your ALTA session...</p><LoaderCircle className="spin" size={20}/></div></div>;
+  }
+  if (!user) {
+    return <div className="auth-shell"><form className="auth-card" onSubmit={event => { event.preventDefault(); void signIn(); }}>
+      <div className="brand-mark"><Code2 size={22}/></div><div className="eyebrow"><LockKeyhole size={13}/> ALTA SECURE WORKSPACE</div>
+      <h1>Welcome back.</h1><p>Sign in with your existing Track A account to access AI code reviews and saved history.</p>
+      <label htmlFor="alta-username">Username</label><input id="alta-username" autoComplete="username" value={username} onChange={event => setUsername(event.target.value)} placeholder="Your ALTA username" required/>
+      <label htmlFor="alta-password">Password</label><input id="alta-password" type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} placeholder="Your password" required/>
+      {authError && <div className="error-message"><TriangleAlert size={15}/>{authError}</div>}
+      <button className="analyze-button auth-submit" disabled={authLoading || !username.trim() || !password}>{authLoading ? <><LoaderCircle className="spin" size={16}/> Signing in...</> : <>Sign in to ALTA <ArrowUpRight size={16}/></>}</button>
+      <span className="auth-footnote">Uses your existing ALTA account. Your password is sent only to your configured API over HTTPS.</span>
+    </form></div>;
+  }
+
   return <div className="app-shell">
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark"><Code2 size={20}/></div><div><b>ALTA</b><span>DEVELOPER TOOLS</span></div></div>
@@ -70,7 +127,7 @@ export default function App() {
       <div className="side-divider"/>
       <div className="workspace-label history-label">RECENT REVIEWS</div>
       {history.length ? history.map((item, i) => <button className="history-item" key={i}><Clock3 size={14}/><span>{item.title}</span></button>) : <p className="empty-history">Your recent reviews will appear here.</p>}
-      <div className="sidebar-bottom"><div className="secure-card"><div className="secure-icon"><LockKeyhole size={15}/></div><div><b>Private by design</b><span>Your code stays yours.</span></div><ShieldCheck size={16} className="secure-check"/></div><div className="profile"><div className="avatar">A</div><div><b>ALTA Workspace</b><span>Free workspace</span></div><ChevronDown size={15}/></div></div>
+      <div className="sidebar-bottom"><div className="secure-card"><div className="secure-icon"><LockKeyhole size={15}/></div><div><b>Private by design</b><span>Your code stays yours.</span></div><ShieldCheck size={16} className="secure-check"/></div><div className="profile"><div className="avatar">{user.username?.slice(0,1).toUpperCase() || "A"}</div><div><b>{user.username || "ALTA Workspace"}</b><span>Signed in</span></div><button className="signout" onClick={signOut}>Sign out</button></div></div>
     </aside>
 
     <main className="main">
