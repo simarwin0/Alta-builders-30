@@ -47,7 +47,8 @@ export default function App() {
       .then(response => response.ok ? response.json() : null)
       .then(data => {
         if (active && Array.isArray(data?.items)) {
-          setHistory(data.items.map((item: { filename?: string; createdAt?: string }) => ({
+          setHistory(data.items.map((item: { _id?: string; filename?: string; createdAt?: string }) => ({
+            id: item._id,
             title: item.filename || "Code review",
             time: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "Saved review"
           })));
