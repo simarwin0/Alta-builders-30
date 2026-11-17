@@ -14,7 +14,7 @@ An AI-assisted code review platform for detecting bugs, security risks, and main
 - [x] Track A-compatible JWT cookie/session validation
 - [x] MongoDB review persistence and user-scoped history endpoint
 - [x] React/Vite responsive reviewer dashboard
-- [x] Initial input validation and report-schema tests authored\n- [x] Track A sign-in screen and saved history loading\n- [x] Production review routes mounted in the shared Track A API\n- [x] Ten baseline review fixtures authored (live model verification still pending)
+- [x] Initial input validation and report-schema tests authored\n- [x] Track A sign-in screen and saved history loading\n- [x] Production review routes mounted in the shared Track A API\n- [x] Ten baseline review fixtures authored (live model verification still pending)\n- [x] Fifteen adversarial evaluation fixtures authored (live scoring still pending)\n- [x] User-scoped review detail and deletion APIs\n- [x] Short-lived per-user result cache and token usage logging
 - [ ] Confirm the latest CI run is green for all three packages
 - [ ] Run live OpenAI tests and verify 10 prompt fixtures
 - [ ] Complete 15-case evaluation and publish results
