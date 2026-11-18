@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "npm install --include=dev --no-audit --no-fund && tsc",
     "start": "node dist/index.js",
     "test": "node --import tsx --test src/__tests__/*.test.ts",
     "postman:sync": "tsx scripts/postman-sync.ts",
