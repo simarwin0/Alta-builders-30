@@ -407,7 +407,11 @@ app.get("/auth/google/callback", async (req, res) => {
     return res.redirect("/?authError=" + encodeURIComponent("Google sign-in could not be verified. Please try again."));
   }
   if (req.query.error) {
-    return res.redirect("/?authError=" + encodeURIComponent("Google sign-in was cancelled."));
+    const googleError = typeof req.query.error === "string"
+      ? req.query.error.slice(0, 80)
+      : "unknown";
+    console.warn("Google authorization was rejected:", googleError);
+    return res.redirect("/?authError=" + encodeURIComponent("Google rejected the sign-in request (" + googleError + "). Check the OAuth app audience, publishing status and redirect URI."));
   }
   if (typeof req.query.code !== "string") {
     return res.redirect("/?authError=" + encodeURIComponent("Google did not return an authorization code."));
