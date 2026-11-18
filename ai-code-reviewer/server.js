@@ -124,7 +124,7 @@ function setSessionCookie(res, identity = "owner") {
   res.cookie("reviewer_session", createSessionToken(identity), {
     httpOnly: true,
     secure: NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     path: "/",
     maxAge: SESSION_TTL_SECONDS * 1000
   });
@@ -145,16 +145,6 @@ function googleCallbackUrl(req) {
 function requireSession(req, res, next) {
   if (!isValidSession(req)) return res.status(401).json({ error: "Please sign in to use the reviewer." });
   next();
-}
-
-function setSessionCookie(res) {
-  res.cookie("reviewer_session", createSessionToken(), {
-    httpOnly: true,
-    secure: NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/",
-    maxAge: SESSION_TTL_SECONDS * 1000
-  });
 }
 
 function constantTimePasswordMatch(candidate, expected) {
@@ -371,7 +361,7 @@ app.get("/health", (_req, res) => {
   });
 });
 
-app.get("/auth/google", (req, res) => {
+app.get("/auth/google", loginLimiter, (req, res) => {
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !SESSION_KEY) {
     return res.redirect("/?authError=" + encodeURIComponent("Google sign-in is not configured yet."));
   }
@@ -481,7 +471,7 @@ app.post("/api/logout", sameOrigin, (_req, res) => {
   res.clearCookie("reviewer_session", {
     httpOnly: true,
     secure: NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     path: "/"
   });
   res.json({ success: true });
