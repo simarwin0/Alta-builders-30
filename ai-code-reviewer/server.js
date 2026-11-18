@@ -435,7 +435,8 @@ app.get("/auth/google/callback", async (req, res) => {
     if (!payload || payload.nonce !== savedNonce || payload.email_verified !== true || !email) {
       return res.redirect("/?authError=" + encodeURIComponent("Google account verification failed."));
     }
-    if (!GOOGLE_ALLOWED_EMAILS.has(email)) {
+    const allowAllGoogleAccounts = GOOGLE_ALLOWED_EMAILS.has("*");
+    if (!allowAllGoogleAccounts && !GOOGLE_ALLOWED_EMAILS.has(email)) {
       return res.redirect("/?authError=" + encodeURIComponent("This Google account has not been approved for this reviewer."));
     }
 
