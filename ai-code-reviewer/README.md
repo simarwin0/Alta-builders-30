@@ -38,7 +38,7 @@ Set these in the AI reviewer service only:
 | `REVIEWER_ACCESS_PASSWORD` | Output of `openssl rand -hex 32`; used for session signing and owner fallback login |
 | `GOOGLE_CLIENT_ID` | OAuth Client ID from Google Cloud |
 | `GOOGLE_CLIENT_SECRET` | OAuth Client Secret from Google Cloud |
-| `GOOGLE_ALLOWED_EMAILS` | Comma-separated list of approved Google email addresses |
+| `GOOGLE_ALLOWED_EMAILS` | `*` to allow every Google account with a verified email, or a comma-separated list to restrict access to specific email addresses |
 
 Optional:
 
@@ -58,10 +58,10 @@ Never put OAuth client secrets or the OpenAI key in browser code, GitHub, or fro
 4. Add this exact Authorized redirect URI:
    `https://alta-ai-code-reviewer.onrender.com/auth/google/callback`
 5. Copy the OAuth Client ID and Client Secret into the Render environment variables above.
-6. Add each permitted Google account to `GOOGLE_ALLOWED_EMAILS`, separated by commas.
+6. Set `GOOGLE_ALLOWED_EMAILS=*` to allow all Google accounts with verified email addresses, or enter a comma-separated allowlist for restricted access.
 7. Save the Render variables and wait for the deploy to finish. Visit `/health`; `googleAuthConfigured` and `googleAccessConfigured` should both be `true`.
 
-The redirect URI must exactly match the URI registered in Google Cloud. Do not ask users to type their Gmail passwords into this application.
+**Security:** Using `*` makes the sign-in gate open to any Google account with a verified email. Anyone can then consume the review quota and your OpenAI API budget. For a private reviewer, use an explicit list of approved email addresses instead. Google OAuth's own consent-screen publishing status and policies also apply. The redirect URI must exactly match the URI registered in Google Cloud. Do not ask users to type their Gmail passwords into this application.
 
 ## Routes
 
