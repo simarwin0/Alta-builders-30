@@ -35,7 +35,10 @@ const GOOGLE_ALLOWED_EMAILS = new Set(
 
 if (NODE_ENV === "production") app.set("trust proxy", 1);
 app.disable("x-powered-by");
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+}));
 app.use(express.json({ limit: "100kb" }));
 
 const here = path.dirname(fileURLToPath(import.meta.url));
