@@ -4,7 +4,7 @@ This is a separate Node.js service. It does not use the Alta chat backend, its M
 
 ## Features
 
-- Google sign-in using OpenID Connect. Users enter their Google password only on Google's own sign-in page; this application never receives or stores Gmail passwords.
+- Google sign-in using Google Identity Services (popup flow) and server-side ID-token verification. Users enter their Google password only on Google's own sign-in page; this application never receives or stores Gmail passwords.
 - An owner access-password fallback for administration.
 - Optional email allowlist so only approved Google accounts can access the reviewer.
 - HttpOnly, Secure (production), SameSite=Lax session cookie.
@@ -37,38 +37,36 @@ Set these in the AI reviewer service only:
 | `OPENAI_API_KEY` | Your OpenAI API key |
 | `REVIEWER_ACCESS_PASSWORD` | Output of `openssl rand -hex 32`; used for session signing and owner fallback login |
 | `GOOGLE_CLIENT_ID` | OAuth Client ID from Google Cloud |
-| `GOOGLE_CLIENT_SECRET` | OAuth Client Secret from Google Cloud |
 | `GOOGLE_ALLOWED_EMAILS` | `*` to allow every Google account with a verified email, or a comma-separated list to restrict access to specific email addresses |
 
 Optional:
 
 | Key | Value |
 | --- | --- |
-| `GOOGLE_CALLBACK_URL` | `https://alta-ai-code-reviewer.onrender.com/auth/google/callback` |
 | `OPENAI_MODEL` | `gpt-4.1-mini` (default) |
 | `MAX_REVIEW_CODE_CHARS` | `30000` (default) |
 
 Never put OAuth client secrets or the OpenAI key in browser code, GitHub, or frontend environment variables. Do not reuse the chat app's JWT secret or MongoDB URI here.
 
-## Configure Google OAuth
+## Configure Google sign-in
 
-1. Open the Google Cloud Console and select or create a project.
-2. Configure the Google Auth Platform consent screen. Add the email addresses you intend to test as test users while the app is in testing mode.
+1. Open the Google Cloud Console and select the project used for this reviewer.
+2. Configure Google Auth Platform and set the app audience to **External** if people outside your Google Workspace need access. While publishing status is **Testing**, add your Google account under **Test users**; for broad access, publish the app according to Google's requirements.
 3. Create an OAuth client with application type **Web application**.
-4. Add this exact Authorized redirect URI:
-   `https://alta-ai-code-reviewer.onrender.com/auth/google/callback`
-5. Copy the OAuth Client ID and Client Secret into the Render environment variables above.
+4. Under **Authorized JavaScript origins**, add this exact origin (no trailing slash and no path):
+   `https://alta-ai-code-reviewer.onrender.com`
+5. Copy the OAuth **Client ID** into the Render environment variable `GOOGLE_CLIENT_ID`. This popup-based sign-in flow does not require a Client Secret or an OAuth callback URL.
 6. Set `GOOGLE_ALLOWED_EMAILS=*` to allow all Google accounts with verified email addresses, or enter a comma-separated allowlist for restricted access.
-7. Save the Render variables and wait for the deploy to finish. Visit `/health`; `googleAuthConfigured` and `googleAccessConfigured` should both be `true`.
+7. Save Render changes and wait for the deploy to finish. Visit `/health`; `googleAuthConfigured` and `googleAccessConfigured` should both be `true`.
 
-**Security:** Using `*` makes the sign-in gate open to any Google account with a verified email. Anyone can then consume the review quota and your OpenAI API budget. For a private reviewer, use an explicit list of approved email addresses instead. Google OAuth's own consent-screen publishing status and policies also apply. The redirect URI must exactly match the URI registered in Google Cloud. Do not ask users to type their Gmail passwords into this application.
+**Security:** Using `*` lets any Google account with a verified email pass the app-level sign-in gate. That can allow others to use the reviewer and consume your OpenAI budget. For private access, replace `*` with your own email address or a comma-separated list of approved accounts. Google's own audience, testing, publishing, and account policies still apply. Do not ask users to type Gmail passwords into this app.
 
 ## Routes
 
 - `GET /` — reviewer web interface.
 - `GET /health` — service and configuration booleans (never returns secret values).
-- `GET /auth/google` — begins Google sign-in.
-- `GET /auth/google/callback` — verifies Google's response and creates an approved user's session.
+- `GET /api/auth/google/bootstrap` — issues a short-lived nonce and returns the public Google Client ID.
+- `POST /api/auth/google/credential` — verifies the Google ID token, nonce, and access policy before creating a session.
 - `POST /api/login` — owner access-password fallback.
 - `GET /api/session` — checks the current session and returns its email when it is a Google session.
 - `POST /api/analyze` — review pasted code or a public GitHub file; requires a session.
@@ -82,7 +80,7 @@ npm install
 OPENAI_API_KEY=your_key REVIEWER_ACCESS_PASSWORD="$(openssl rand -hex 32)" npm start
 ```
 
-For local Google OAuth, register a localhost callback URL in your Google OAuth client and set `GOOGLE_CALLBACK_URL` to that exact URL.
+For local Google sign-in, add `http://localhost:10000` to the OAuth client's Authorized JavaScript origins and use the same `GOOGLE_CLIENT_ID`.
 
 Then open http://localhost:10000.
 
