@@ -28,11 +28,10 @@ A rewarding experience in turning an AI idea into a deployed application, and pl
 
 ---
 
-## Attach these two images to the LinkedIn post
+## Attach the two supplied screenshots before publishing
 
-Download each image from the GitHub showcase branch, then add both as native photo attachments when publishing the post:
-
-1. Sign-in screen: https://github.com/simarwin0/Alta-builders-30/blob/showcase/ai-code-reviewer-achievement/ai-code-reviewer-showcase/login-screen.webp
-2. Reviewer dashboard: https://github.com/simarwin0/Alta-builders-30/blob/showcase/ai-code-reviewer-achievement/ai-code-reviewer-showcase/reviewer-dashboard.webp
+Upload the two screenshots supplied in the project conversation as native photo attachments on LinkedIn:
+1. The ALTA / AI REVIEWER private sign-in screen.
+2. The authenticated New code review workspace.
 
 Do not include access passwords, API keys, or environment-variable values in the post.
