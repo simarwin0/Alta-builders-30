@@ -1,6 +1,7 @@
 import express from "express";
 import helmet from "helmet";
 import OpenAI from "openai";
+import { OAuth2Client } from "google-auth-library";
 import { rateLimit } from "express-rate-limit";
 import {
   createHash,
@@ -24,6 +25,14 @@ const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
 const SESSION_KEY = ACCESS_PASSWORD.length >= 32
   ? createHash("sha256").update("alta-standalone-ai-reviewer-session-v1:").update(ACCESS_PASSWORD).digest()
   : null;
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
+const GOOGLE_ALLOWED_EMAILS = new Set(
+  (process.env.GOOGLE_ALLOWED_EMAILS || "")
+    .split(",")
+    .map(email => email.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 if (NODE_ENV === "production") app.set("trust proxy", 1);
 app.disable("x-powered-by");
@@ -70,30 +79,67 @@ function readCookie(req, name) {
   return null;
 }
 
-function signSession(expiry, nonce) {
+function signSession(expiry, nonce, identity) {
   return createHmac("sha256", SESSION_KEY)
-    .update(`${expiry}.${nonce}`)
+    .update(`${expiry}.${nonce}.${identity}`)
     .digest("base64url");
 }
 
-function createSessionToken() {
+function createSessionToken(identity = "owner") {
   const expiry = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
   const nonce = randomBytes(24).toString("base64url");
-  return `${expiry}.${nonce}.${signSession(expiry, nonce)}`;
+  const encodedIdentity = Buffer.from(identity, "utf8").toString("base64url");
+  const signature = signSession(expiry, nonce, identity);
+  return `${expiry}.${nonce}.${encodedIdentity}.${signature}`;
+}
+
+function getSessionIdentity(req) {
+  if (!SESSION_KEY) return null;
+  const token = readCookie(req, "reviewer_session");
+  if (!token) return null;
+  const [expiryText, nonce, encodedIdentity, signature, extra] = token.split(".");
+  if (!expiryText || !nonce || !encodedIdentity || !signature || extra !== undefined) return null;
+  const expiry = Number(expiryText);
+  if (!Number.isSafeInteger(expiry) || expiry <= Math.floor(Date.now() / 1000)) return null;
+
+  let identity;
+  try {
+    identity = Buffer.from(encodedIdentity, "base64url").toString("utf8");
+  } catch {
+    return null;
+  }
+  if (!identity || identity.length > 320) return null;
+
+  const expected = signSession(expiryText, nonce, identity);
+  const receivedDigest = createHash("sha256").update(signature).digest();
+  const expectedDigest = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(receivedDigest, expectedDigest) ? identity : null;
 }
 
 function isValidSession(req) {
-  if (!SESSION_KEY) return false;
-  const token = readCookie(req, "reviewer_session");
-  if (!token) return false;
-  const [expiryText, nonce, signature, extra] = token.split(".");
-  if (!expiryText || !nonce || !signature || extra !== undefined) return false;
-  const expiry = Number(expiryText);
-  if (!Number.isSafeInteger(expiry) || expiry <= Math.floor(Date.now() / 1000)) return false;
-  const expected = signSession(expiryText, nonce);
-  const receivedDigest = createHash("sha256").update(signature).digest();
-  const expectedDigest = createHash("sha256").update(expected).digest();
-  return timingSafeEqual(receivedDigest, expectedDigest);
+  return getSessionIdentity(req) !== null;
+}
+
+function setSessionCookie(res, identity = "owner") {
+  res.cookie("reviewer_session", createSessionToken(identity), {
+    httpOnly: true,
+    secure: NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/",
+    maxAge: SESSION_TTL_SECONDS * 1000
+  });
+}
+
+function safeStringEqual(left, right) {
+  if (typeof left !== "string" || typeof right !== "string") return false;
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+function googleCallbackUrl(req) {
+  return process.env.GOOGLE_CALLBACK_URL ||
+    `${req.protocol}://${req.get("host")}/auth/google/callback`;
 }
 
 function requireSession(req, res, next) {
@@ -319,12 +365,104 @@ app.get("/health", (_req, res) => {
     status: "ok",
     service: "standalone-ai-code-reviewer",
     accessConfigured: Boolean(SESSION_KEY),
-    openaiConfigured: Boolean(process.env.OPENAI_API_KEY)
+    openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
+    googleAuthConfigured: Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET),
+    googleAccessConfigured: GOOGLE_ALLOWED_EMAILS.size > 0
   });
 });
 
+app.get("/auth/google", (req, res) => {
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !SESSION_KEY) {
+    return res.redirect("/?authError=" + encodeURIComponent("Google sign-in is not configured yet."));
+  }
+  if (!GOOGLE_ALLOWED_EMAILS.size) {
+    return res.redirect("/?authError=" + encodeURIComponent("No approved Google accounts are configured. Ask the owner to add an email address."));
+  }
+
+  const state = randomBytes(32).toString("base64url");
+  const nonce = randomBytes(32).toString("base64url");
+  const callbackUrl = googleCallbackUrl(req);
+  const oauthClient = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, callbackUrl);
+
+  res.cookie("reviewer_oauth_state", `${state}.${nonce}`, {
+    httpOnly: true,
+    secure: NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/auth/google/callback",
+    maxAge: 10 * 60 * 1000
+  });
+
+  const authorizationUrl = oauthClient.generateAuthUrl({
+    access_type: "online",
+    scope: ["openid", "email", "profile"],
+    state,
+    nonce,
+    prompt: "select_account"
+  });
+  return res.redirect(authorizationUrl);
+});
+
+app.get("/auth/google/callback", async (req, res) => {
+  const savedStateCookie = readCookie(req, "reviewer_oauth_state");
+  res.clearCookie("reviewer_oauth_state", {
+    httpOnly: true,
+    secure: NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/auth/google/callback"
+  });
+
+  const [savedState, savedNonce, extra] = (savedStateCookie || "").split(".");
+  if (!savedState || !savedNonce || extra !== undefined ||
+      !safeStringEqual(String(req.query.state || ""), savedState)) {
+    return res.redirect("/?authError=" + encodeURIComponent("Google sign-in could not be verified. Please try again."));
+  }
+  if (req.query.error) {
+    return res.redirect("/?authError=" + encodeURIComponent("Google sign-in was cancelled."));
+  }
+  if (typeof req.query.code !== "string") {
+    return res.redirect("/?authError=" + encodeURIComponent("Google did not return an authorization code."));
+  }
+
+  try {
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_ALLOWED_EMAILS.size || !SESSION_KEY) {
+      return res.redirect("/?authError=" + encodeURIComponent("Google sign-in is not fully configured by the owner."));
+    }
+
+    const callbackUrl = googleCallbackUrl(req);
+    const oauthClient = new OAuth2Client(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, callbackUrl);
+    const { tokens } = await oauthClient.getToken(req.query.code);
+    if (!tokens.id_token) {
+      return res.redirect("/?authError=" + encodeURIComponent("Google did not provide a verified identity."));
+    }
+
+    const ticket = await oauthClient.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: GOOGLE_CLIENT_ID
+    });
+    const payload = ticket.getPayload();
+    const email = typeof payload?.email === "string" ? payload.email.trim().toLowerCase() : "";
+
+    if (!payload || payload.nonce !== savedNonce || payload.email_verified !== true || !email) {
+      return res.redirect("/?authError=" + encodeURIComponent("Google account verification failed."));
+    }
+    if (!GOOGLE_ALLOWED_EMAILS.has(email)) {
+      return res.redirect("/?authError=" + encodeURIComponent("This Google account has not been approved for this reviewer."));
+    }
+
+    setSessionCookie(res, email);
+    return res.redirect("/");
+  } catch (error) {
+    console.error("Google OAuth callback failed:", error instanceof Error ? error.name : "UnknownError");
+    return res.redirect("/?authError=" + encodeURIComponent("Google sign-in failed. Please try again or contact the owner."));
+  }
+});
+
 app.get("/api/session", (req, res) => {
-  res.json({ authenticated: isValidSession(req) });
+  const identity = getSessionIdentity(req);
+  res.json({
+    authenticated: Boolean(identity),
+    email: identity && identity !== "owner" ? identity : null
+  });
 });
 
 app.post("/api/login", sameOrigin, loginLimiter, (req, res) => {
