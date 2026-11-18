@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>Alta AI Code Reviewer</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1220; --panel:#121d2e; --line:#24344b; --text:#edf3fb; --muted:#9aabc1; --accent:#8bb7ff; --good:#7de0b1; --warn:#ffd37a; --bad:#ff9191; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:radial-gradient(circle at 10% 0%,#172943 0,transparent 35%),var(--bg); color:var(--text); font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    .wrap { width:min(1050px,calc(100% - 32px)); margin:0 auto; padding:46px 0 72px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:34px; }
+    .brand { display:flex; align-items:center; gap:12px; font-weight:750; letter-spacing:.01em; }
+    .mark { width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#7cb7ff,#a38bff);color:#091223;font-weight:900;font-size:20px; }
+    .eyebrow { color:var(--accent); text-transform:uppercase; font-size:11px; letter-spacing:.14em; font-weight:800; }
+    h1 { font-size:clamp(29px,5vw,44px);line-height:1.12;letter-spacing:-.04em;margin:7px 0 12px; }
+    .intro { color:var(--muted); max-width:680px; margin:0; }
+    .panel { background:rgba(18,29,46,.94); border:1px solid var(--line); border-radius:19px; padding:24px; box-shadow:0 18px 50px rgba(0,0,0,.18); }
+    .narrow { max-width:470px; margin:42px auto; }
+    label { display:block; font-weight:650; margin:15px 0 7px; }
+    input,textarea,select { width:100%; color:var(--text); background:#0b1524; border:1px solid #30445e; border-radius:10px; padding:12px 13px; font:inherit; outline:none; }
+    input:focus,textarea:focus,select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(139,183,255,.12); }
+    textarea { min-height:250px;resize:vertical;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; }
+    .row { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
+    button { border:0; border-radius:10px; padding:12px 17px; color:#071224; background:linear-gradient(135deg,#8bc1ff,#b5a0ff); font:700 14px inherit; cursor:pointer; }
+    button:disabled { opacity:.55; cursor:wait; }
+    button.secondary { color:var(--text); background:#25364d; border:1px solid #3b506b; }
+    .actions { display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:18px; }
+    .muted,.hint { color:var(--muted);font-size:13px; }
+    .error { color:var(--bad);min-height:22px;margin-top:10px; }
+    .success { color:var(--good); }
+    .hidden { display:none!important; }
+    .topline { display:flex;align-items:center;justify-content:space-between;gap:16px; }
+    .results { margin-top:24px; }
+    .result-head { display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px; }
+    .risk { border-radius:999px;padding:5px 11px;font-weight:750;font-size:12px;background:#24364f; }
+    .risk.high { color:var(--bad);background:#45242f; }
+    .risk.medium { color:var(--warn);background:#46391f; }
+    .risk.low { color:var(--good);background:#1e4038; }
+    .finding { border:1px solid var(--line);border-radius:13px;padding:17px;margin:12px 0;background:#0d1726; }
+    .finding h3 { font-size:16px;margin:7px 0 5px; }
+    .finding p { color:#bdcadd;margin:8px 0;white-space:pre-wrap;overflow-wrap:anywhere; }
+    .tag { display:inline-block;border-radius:6px;padding:3px 7px;background:#23354d;color:#d9e8fa;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-right:5px; }
+    .tag.high { background:#45242f;color:#ffb0b0; }
+    .tag.medium { background:#46391f;color:#ffe0a0; }
+    .tag.low { background:#1e4038;color:#9af0c7; }
+    .fix { border-left:3px solid #8bb7ff;padding-left:12px;margin-top:10px!important; }
+    ul { color:#c3d1e3;padding-left:20px; }
+    .foot { color:#788ca6;text-align:center;font-size:12px;margin-top:25px; }
+    @media(max-width:650px){.wrap{padding-top:25px}.panel{padding:18px}.row{grid-template-columns:1fr}header{align-items:flex-start}.topline{align-items:flex-start}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div class="brand"><div class="mark">A</div><div>ALTA <span style="color:#91baff">/</span> AI REVIEWER</div></div>
+      <div class="eyebrow">Standalone service</div>
+    </header>
+
+    <section>
+      <div class="eyebrow">Defensive code analysis</div>
+      <h1>Find issues before they reach production.</h1>
+      <p class="intro">Review pasted source code or a public GitHub file. The reviewer checks for bugs, security weaknesses and maintainability concerns. Submitted code is analyzed as text and is never executed.</p>
+    </section>
+
+    <section id="loginPanel" class="panel narrow">
+      <h2 style="margin:0 0 5px">Private reviewer access</h2>
+      <p class="muted">Enter the access password configured for this Render service.</p>
+      <form id="loginForm">
+        <label for="password">Access password</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+        <div class="actions"><button id="loginButton" type="submit">Sign in</button></div>
+        <div id="loginError" class="error" role="alert"></div>
+      </form>
+    </section>
+
+    <section id="appPanel" class="panel hidden">
+      <div class="topline">
+        <div><h2 style="margin:0">New code review</h2><p class="muted" style="margin:3px 0 0">Use exactly one source: paste code or provide a public GitHub file URL.</p></div>
+        <button id="logoutButton" class="secondary" type="button">Sign out</button>
+      </div>
+      <form id="reviewForm">
+        <label for="githubUrl">Public GitHub file URL <span class="muted">(optional)</span></label>
+        <input id="githubUrl" type="url" placeholder="https://github.com/owner/repo/blob/main/src/index.ts">
+        <div style="text-align:center;color:#72859e;margin:10px 0;font-size:12px">OR PASTE SOURCE CODE BELOW</div>
+        <label for="code">Source code</label>
+        <textarea id="code" spellcheck="false" placeholder="Paste the code you want reviewed..."></textarea>
+        <div class="row">
+          <div><label for="filename">Filename</label><input id="filename" maxlength="160" placeholder="example.ts"></div>
+          <div><label for="language">Language <span class="muted">(optional)</span></label><input id="language" maxlength="60" placeholder="Auto-detect from filename"></div>
+        </div>
+        <div class="actions">
+          <button id="reviewButton" type="submit">Analyze code</button>
+          <span class="hint">Maximum source size: 30,000 characters by default · 5 reviews/minute</span>
+        </div>
+        <div id="reviewError" class="error" role="alert"></div>
+      </form>
+      <div id="results" class="results hidden" aria-live="polite"></div>
+    </section>
+
+    <p class="foot">AI findings are suggestions, not proof. Verify every issue and review suggested changes manually.</p>
+  </main>
+<script>
+  const loginPanel = document.getElementById("loginPanel");
+  const appPanel = document.getElementById("appPanel");
+  const loginError = document.getElementById("loginError");
+  const reviewError = document.getElementById("reviewError");
+  const results = document.getElementById("results");
+  const loginButton = document.getElementById("loginButton");
+  const reviewButton = document.getElementById("reviewButton");
+
+  async function api(url, options = {}) {
+    const response = await fetch(url, { credentials: "same-origin", ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Request failed.");
+    return data;
+  }
+
+  function showApp(authed) {
+    loginPanel.classList.toggle("hidden", authed);
+    appPanel.classList.toggle("hidden", !authed);
+  }
+
+  function addText(parent, tag, text, className) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    node.textContent = text;
+    parent.appendChild(node);
+    return node;
+  }
+
+  function renderReport(data) {
+    results.replaceChildren();
+    results.classList.remove("hidden");
+    const heading = document.createElement("div");
+    heading.className = "result-head";
+    addText(heading, "h2", "Review report");
+    addText(heading, "span", "Overall risk: " + data.report.overallRisk, "risk " + data.report.overallRisk.toLowerCase());
+    results.appendChild(heading);
+    addText(results, "p", data.report.summary);
+    addText(results, "p", data.source.filename + " · " + data.source.language + (data.source.sourceUrl ? " · public GitHub file" : ""), "muted");
+    addText(results, "h3", "Findings (" + data.report.findings.length + ")");
+    if (!data.report.findings.length) addText(results, "p", "No concrete issues were identified in the submitted code.");
+    for (const finding of data.report.findings) {
+      const card = document.createElement("article");
+      card.className = "finding";
+      addText(card, "span", finding.category, "tag");
+      addText(card, "span", finding.severity, "tag " + finding.severity.toLowerCase());
+      if (finding.line) addText(card, "span", "Line " + finding.line, "tag");
+      addText(card, "h3", finding.title);
+      addText(card, "p", finding.description);
+      addText(card, "p", "Suggested fix: " + finding.suggestedFix, "fix");
+      addText(card, "p", "Confidence: " + Math.round(finding.confidence * 100) + "%", "muted");
+      results.appendChild(card);
+    }
+    if (data.report.positives.length) {
+      addText(results, "h3", "What looks good");
+      const list = document.createElement("ul");
+      for (const item of data.report.positives) addText(list, "li", item);
+      results.appendChild(list);
+    }
+    if (data.usage) addText(results, "p", "Model: " + data.model + " · Tokens: " + data.usage.totalTokens, "muted");
+  }
+
+  document.getElementById("loginForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    loginError.textContent = "";
+    loginButton.disabled = true;
+    try {
+      await api("/api/login", { method: "POST", body: JSON.stringify({ password: document.getElementById("password").value }) });
+      document.getElementById("password").value = "";
+      showApp(true);
+    } catch (error) {
+      loginError.textContent = error.message;
+    } finally {
+      loginButton.disabled = false;
+    }
+  });
+
+  document.getElementById("logoutButton").addEventListener("click", async () => {
+    try { await api("/api/logout", { method: "POST", body: "{}" }); } catch {}
+    results.classList.add("hidden");
+    showApp(false);
+  });
+
+  document.getElementById("reviewForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    reviewError.textContent = "";
+    results.classList.add("hidden");
+    reviewButton.disabled = true;
+    reviewButton.textContent = "Reviewing...";
+    const code = document.getElementById("code").value;
+    const githubUrl = document.getElementById("githubUrl").value;
+    const payload = {
+      code: code.trim() ? code : undefined,
+      githubUrl: githubUrl.trim() ? githubUrl : undefined,
+      filename: document.getElementById("filename").value,
+      language: document.getElementById("language").value
+    };
+    try {
+      const data = await api("/api/analyze", { method: "POST", body: JSON.stringify(payload) });
+      renderReport(data);
+    } catch (error) {
+      if (error.message.toLowerCase().includes("sign in")) showApp(false);
+      reviewError.textContent = error.message;
+    } finally {
+      reviewButton.disabled = false;
+      reviewButton.textContent = "Analyze code";
+    }
+  });
+
+  api("/api/session").then(data => showApp(Boolean(data.authenticated))).catch(() => showApp(false));
+</script>
+</body>
+</html>
