@@ -356,9 +356,76 @@ app.get("/health", (_req, res) => {
     service: "standalone-ai-code-reviewer",
     accessConfigured: Boolean(SESSION_KEY),
     openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
-    googleAuthConfigured: Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET),
+    googleAuthConfigured: Boolean(GOOGLE_CLIENT_ID),
     googleAccessConfigured: GOOGLE_ALLOWED_EMAILS.size > 0
   });
+});
+
+app.get("/api/auth/google/bootstrap", loginLimiter, (req, res) => {
+  if (!GOOGLE_CLIENT_ID || !SESSION_KEY || !GOOGLE_ALLOWED_EMAILS.size) {
+    return res.status(503).json({ error: "Google sign-in is not fully configured. Use owner access or contact the app owner." });
+  }
+
+  const nonce = randomBytes(32).toString("base64url");
+  res.cookie("reviewer_gsi_nonce", nonce, {
+    httpOnly: true,
+    secure: NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/api/auth/google/credential",
+    maxAge: 5 * 60 * 1000
+  });
+  res.set("Cache-Control", "no-store");
+  return res.json({ clientId: GOOGLE_CLIENT_ID, nonce });
+});
+
+app.post("/api/auth/google/credential", sameOrigin, loginLimiter, async (req, res) => {
+  const nonce = readCookie(req, "reviewer_gsi_nonce");
+  const credential = typeof req.body?.credential === "string" ? req.body.credential : "";
+
+  if (!nonce) {
+    return res.status(401).json({ error: "Your Google sign-in session expired. Refresh the page and try again." });
+  }
+  if (!credential || credential.length > 12000) {
+    return res.status(400).json({ error: "Google did not return a valid sign-in credential." });
+  }
+  if (!GOOGLE_CLIENT_ID || !SESSION_KEY || !GOOGLE_ALLOWED_EMAILS.size) {
+    return res.status(503).json({ error: "Google sign-in is not fully configured." });
+  }
+
+  try {
+    const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: GOOGLE_CLIENT_ID
+    });
+    const payload = ticket.getPayload();
+    const email = typeof payload?.email === "string" ? payload.email.trim().toLowerCase() : "";
+
+    if (!payload || !payload.sub || payload.nonce !== nonce ||
+        payload.email_verified !== true || !email) {
+      return res.status(401).json({ error: "Google could not verify this account. Refresh the page and try again." });
+    }
+
+    const allowAllGoogleAccounts = GOOGLE_ALLOWED_EMAILS.has("*");
+    if (!allowAllGoogleAccounts && !GOOGLE_ALLOWED_EMAILS.has(email)) {
+      return res.status(403).json({ error: "This Google account is not approved for this reviewer." });
+    }
+
+    res.clearCookie("reviewer_gsi_nonce", {
+      httpOnly: true,
+      secure: NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/api/auth/google/credential"
+    });
+    setSessionCookie(res, email);
+    return res.json({ authenticated: true, email });
+  } catch (error) {
+    const code = error && typeof error === "object" && error.code
+      ? String(error.code).slice(0, 80)
+      : "token_verification_failed";
+    console.warn("Google Identity Services token verification failed:", code);
+    return res.status(401).json({ error: "Google sign-in could not be verified. Refresh the page and try again." });
+  }
 });
 
 app.get("/auth/google", loginLimiter, (req, res) => {
