@@ -289,8 +289,30 @@ app.post("/api/analyze", sameOrigin, publicDailyReviewLimiter, reviewLimiter, gl
       return res.status(400).json({ error: message });
     }
     if (message.includes("OPENAI_API_KEY is not configured")) {
-      return res.status(503).json({ error: "Add OPENAI_API_KEY in the Render environment settings to enable reviews." });
+      return res.status(503).json({ error: "The AI reviewer is not ready: add OPENAI_API_KEY in the Render environment settings." });
     }
+
+    const apiErrorCode = error && typeof error === "object" ? error.code : undefined;
+    const apiErrorStatus = error && typeof error === "object" ? error.status : undefined;
+    if (apiErrorCode === "invalid_api_key" || apiErrorStatus === 401) {
+      console.error("OpenAI rejected the configured API key:", {
+        code: apiErrorCode || "unauthorized",
+        status: apiErrorStatus || 401
+      });
+      return res.status(503).json({
+        error: "The AI reviewer is not ready because OpenAI rejected its API key. The app owner must replace OPENAI_API_KEY in Render with a valid, active key."
+      });
+    }
+    if (apiErrorCode === "insufficient_quota" || apiErrorStatus === 429) {
+      console.error("OpenAI API quota or rate limit error:", {
+        code: apiErrorCode || "rate_limit",
+        status: apiErrorStatus || 429
+      });
+      return res.status(503).json({
+        error: "The AI reviewer is temporarily unavailable because the OpenAI API project has reached a usage limit or billing restriction. The app owner must check OpenAI billing and usage limits."
+      });
+    }
+
     console.error("AI review failed:", {
       name: error instanceof Error ? error.name : "UnknownError",
       code: error && typeof error === "object" ? error.code : undefined
