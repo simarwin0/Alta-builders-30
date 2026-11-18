@@ -443,8 +443,18 @@ app.get("/auth/google/callback", async (req, res) => {
     setSessionCookie(res, email);
     return res.redirect("/");
   } catch (error) {
-    console.error("Google OAuth callback failed:", error instanceof Error ? error.name : "UnknownError");
-    return res.redirect("/?authError=" + encodeURIComponent("Google sign-in failed. Please try again or contact the owner."));
+    const oauthCode = error && typeof error === "object"
+      ? (error.code || error.response?.data?.error || "unknown")
+      : "unknown";
+    const oauthMessage = error instanceof Error
+      ? error.message.slice(0, 240)
+      : "Unknown OAuth error";
+    console.error("Google OAuth callback failed:", {
+      name: error instanceof Error ? error.name : "UnknownError",
+      code: oauthCode,
+      message: oauthMessage
+    });
+    return res.redirect("/?authError=" + encodeURIComponent("Google sign-in failed (" + oauthCode + "). Check that the Google Client ID, Client Secret and authorized callback URL match."));
   }
 });
 
