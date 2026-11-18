@@ -3,104 +3,421 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101827">
-  <title>Alta AI Code Reviewer</title>
+  <meta name="theme-color" content="#080e1b">
+  <meta name="description" content="Private AI-powered code review workspace by ALTA.">
+  <title>ALTA — AI Code Reviewer</title>
   <style>
-    :root { color-scheme: dark; --bg:#0b1220; --panel:#121d2e; --line:#24344b; --text:#edf3fb; --muted:#9aabc1; --accent:#8bb7ff; --good:#7de0b1; --warn:#ffd37a; --bad:#ff9191; }
-    * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; background:radial-gradient(circle at 10% 0%,#172943 0,transparent 35%),var(--bg); color:var(--text); font:15px/1.55 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
-    .wrap { width:min(1050px,calc(100% - 32px)); margin:0 auto; padding:46px 0 72px; }
-    header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:34px; }
-    .brand { display:flex; align-items:center; gap:12px; font-weight:750; letter-spacing:.01em; }
-    .mark { width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#7cb7ff,#a38bff);color:#091223;font-weight:900;font-size:20px; }
-    .eyebrow { color:var(--accent); text-transform:uppercase; font-size:11px; letter-spacing:.14em; font-weight:800; }
-    h1 { font-size:clamp(29px,5vw,44px);line-height:1.12;letter-spacing:-.04em;margin:7px 0 12px; }
-    .intro { color:var(--muted); max-width:680px; margin:0; }
-    .panel { background:rgba(18,29,46,.94); border:1px solid var(--line); border-radius:19px; padding:24px; box-shadow:0 18px 50px rgba(0,0,0,.18); }
-    .narrow { max-width:470px; margin:42px auto; }
-    label { display:block; font-weight:650; margin:15px 0 7px; }
-    input,textarea,select { width:100%; color:var(--text); background:#0b1524; border:1px solid #30445e; border-radius:10px; padding:12px 13px; font:inherit; outline:none; }
-    input:focus,textarea:focus,select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(139,183,255,.12); }
-    textarea { min-height:250px;resize:vertical;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; }
-    .row { display:grid;grid-template-columns:1fr 1fr;gap:14px; }
-    button { border:0; border-radius:10px; padding:12px 17px; color:#071224; background:linear-gradient(135deg,#8bc1ff,#b5a0ff); font:700 14px inherit; cursor:pointer; }
-    button:disabled { opacity:.55; cursor:wait; }
-    button.secondary { color:var(--text); background:#25364d; border:1px solid #3b506b; }
-    .actions { display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:18px; }
-    .muted,.hint { color:var(--muted);font-size:13px; }
-    .error { color:var(--bad);min-height:22px;margin-top:10px; }
-    .success { color:var(--good); }
-    .hidden { display:none!important; }
-    .topline { display:flex;align-items:center;justify-content:space-between;gap:16px; }
-    .results { margin-top:24px; }
-    .result-head { display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px; }
-    .risk { border-radius:999px;padding:5px 11px;font-weight:750;font-size:12px;background:#24364f; }
-    .risk.high { color:var(--bad);background:#45242f; }
-    .risk.medium { color:var(--warn);background:#46391f; }
-    .risk.low { color:var(--good);background:#1e4038; }
-    .finding { border:1px solid var(--line);border-radius:13px;padding:17px;margin:12px 0;background:#0d1726; }
-    .finding h3 { font-size:16px;margin:7px 0 5px; }
-    .finding p { color:#bdcadd;margin:8px 0;white-space:pre-wrap;overflow-wrap:anywhere; }
-    .tag { display:inline-block;border-radius:6px;padding:3px 7px;background:#23354d;color:#d9e8fa;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-right:5px; }
-    .tag.high { background:#45242f;color:#ffb0b0; }
-    .tag.medium { background:#46391f;color:#ffe0a0; }
-    .tag.low { background:#1e4038;color:#9af0c7; }
-    .fix { border-left:3px solid #8bb7ff;padding-left:12px;margin-top:10px!important; }
-    ul { color:#c3d1e3;padding-left:20px; }
-    .foot { color:#788ca6;text-align:center;font-size:12px;margin-top:25px; }
-    @media(max-width:650px){.wrap{padding-top:25px}.panel{padding:18px}.row{grid-template-columns:1fr}header{align-items:flex-start}.topline{align-items:flex-start}}
+    :root {
+      color-scheme: dark;
+      --bg: #080e1b;
+      --bg-soft: #0c1424;
+      --panel: rgba(17, 27, 46, .92);
+      --panel-2: #101b2e;
+      --panel-3: #0b1423;
+      --line: rgba(141, 166, 204, .14);
+      --line-strong: rgba(141, 166, 204, .25);
+      --text: #f3f6fc;
+      --muted: #95a5bf;
+      --subtle: #657792;
+      --blue: #8cbcff;
+      --violet: #a995ff;
+      --mint: #83e4c0;
+      --amber: #ffcf83;
+      --red: #ff929d;
+      --shadow: 0 28px 90px rgba(0, 0, 0, .34);
+    }
+    * { box-sizing: border-box; }
+    html { min-width: 320px; background: var(--bg); }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(ellipse at 12% -10%, rgba(71, 111, 183, .24), transparent 34rem),
+        radial-gradient(ellipse at 92% 10%, rgba(113, 86, 182, .16), transparent 32rem),
+        linear-gradient(180deg, #0a1220 0%, #080e1b 54%, #080d18 100%);
+      font: 14px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: .005em;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .15;
+      background-image: linear-gradient(rgba(157, 181, 219, .075) 1px, transparent 1px), linear-gradient(90deg, rgba(157, 181, 219, .075) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: linear-gradient(to bottom, black, transparent 78%);
+    }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    .page { position: relative; z-index: 1; min-height: 100vh; }
+    .topbar {
+      height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 0 42px;
+      border-bottom: 1px solid rgba(141, 166, 204, .1);
+    }
+    .brand { display: inline-flex; align-items: center; gap: 12px; color: var(--text); text-decoration: none; }
+    .brand-mark {
+      width: 39px; height: 39px; border-radius: 13px; display: grid; place-items: center;
+      background: linear-gradient(145deg, #9ac9ff 0%, #9e9aff 100%);
+      box-shadow: 0 7px 24px rgba(128, 153, 255, .24);
+      color: #0a1424;
+    }
+    .brand-mark svg { width: 23px; height: 23px; }
+    .brand-name { font-size: 13px; font-weight: 850; letter-spacing: .16em; }
+    .brand-name span { color: #90baff; }
+    .brand-sub { display: block; color: #7588a6; font-size: 9px; font-weight: 700; letter-spacing: .19em; margin-top: 1px; }
+    .topbar-right { display: flex; align-items: center; gap: 11px; }
+    .secure-pill, .status-pill {
+      display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px;
+      border: 1px solid var(--line); border-radius: 999px; color: #c1cde0;
+      background: rgba(18, 30, 50, .58); font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 13px rgba(131, 228, 192, .65); }
+    .topbar-label { color: #7689a5; font-size: 11px; }
+    .shell { max-width: 1440px; margin: 0 auto; padding: 54px 42px 48px; }
+    .eyebrow { color: #9bbfff; font-size: 10px; font-weight: 850; letter-spacing: .2em; text-transform: uppercase; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 18px; font-size: clamp(38px, 5vw, 63px); line-height: 1.04; letter-spacing: -.055em; font-weight: 760; }
+    h1 .gradient { color: #a7bbff; background: linear-gradient(100deg, #9dc9ff, #b1a0ff 65%, #d0a8ff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+    .lead { max-width: 520px; color: #9eacc2; font-size: 15px; line-height: 1.8; }
+    .login-layout { max-width: 1120px; min-height: 590px; margin: 20px auto 0; display: grid; grid-template-columns: 1.08fr .92fr; align-items: center; gap: 56px; }
+    .login-copy { padding: 24px 0 34px; }
+    .login-copy .eyebrow { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+    .login-copy .eyebrow::before { content: ""; width: 26px; height: 1px; background: #8ebaff; }
+    .feature-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+    .feature-chip { display: inline-flex; gap: 8px; align-items: center; border: 1px solid var(--line); background: rgba(17, 28, 47, .62); color: #b6c5dc; border-radius: 999px; padding: 9px 12px; font-size: 11px; }
+    .feature-chip svg { width: 14px; height: 14px; color: var(--mint); }
+    .visual-card {
+      position: relative; max-width: 480px; margin-top: 42px; padding: 17px;
+      border: 1px solid rgba(145, 170, 211, .19); border-radius: 20px;
+      background: linear-gradient(145deg, rgba(24, 39, 65, .82), rgba(12, 21, 37, .74));
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .22); overflow: hidden;
+    }
+    .visual-card::before { content: ""; position: absolute; width: 240px; height: 160px; right: -70px; top: -100px; border-radius: 50%; background: rgba(140, 158, 255, .16); filter: blur(28px); }
+    .visual-head { display: flex; justify-content: space-between; align-items: center; position: relative; padding: 2px 3px 14px; border-bottom: 1px solid var(--line); color: #c8d4e7; font-size: 11px; }
+    .window-dots { display: flex; gap: 5px; }
+    .window-dots i { display: block; width: 6px; height: 6px; border-radius: 50%; background: #53657f; }
+    .code-lines { position: relative; padding: 15px 5px 8px; font: 11px/2 ui-monospace, SFMono-Regular, Menlo, monospace; color: #a8b8d1; }
+    .code-line { display: flex; gap: 14px; white-space: nowrap; }
+    .line-no { width: 16px; text-align: right; color: #4c607c; user-select: none; }
+    .code-blue { color: #9dc9ff; }.code-purple { color: #c0a7ff; }.code-green { color: #91dfc2; }.code-orange { color: #ffc68d; }
+    .scan-chip { position: absolute; right: 17px; bottom: 16px; display: inline-flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 11px; border: 1px solid rgba(131, 228, 192, .2); background: rgba(9, 34, 34, .92); color: #9be7c8; font-size: 10px; font-weight: 800; }
+    .scan-chip svg { width: 13px; height: 13px; }
+    .auth-card {
+      position: relative; padding: 34px; border: 1px solid rgba(151, 175, 213, .2); border-radius: 23px;
+      background: linear-gradient(155deg, rgba(21, 33, 55, .97), rgba(13, 22, 39, .97));
+      box-shadow: var(--shadow); overflow: hidden;
+    }
+    .auth-card::before { content: ""; position: absolute; width: 180px; height: 180px; right: -90px; top: -110px; border-radius: 50%; background: rgba(144, 160, 255, .12); filter: blur(18px); }
+    .auth-icon { width: 46px; height: 46px; margin-bottom: 24px; display: grid; place-items: center; border-radius: 15px; border: 1px solid rgba(151, 184, 255, .23); background: linear-gradient(145deg, rgba(104, 151, 228, .18), rgba(155, 128, 255, .14)); color: #b9ceff; }
+    .auth-icon svg { width: 22px; height: 22px; }
+    .auth-card h2 { margin: 7px 0 7px; font-size: 27px; letter-spacing: -.035em; }
+    .muted { color: var(--muted); }
+    .auth-card .muted { margin-bottom: 25px; font-size: 13px; }
+    label { display: block; margin: 17px 0 8px; color: #cdd8e8; font-size: 12px; font-weight: 700; }
+    .field-wrap { position: relative; }
+    input, textarea {
+      width: 100%; color: var(--text); background: rgba(7, 15, 28, .82);
+      border: 1px solid rgba(132, 157, 197, .22); border-radius: 11px;
+      padding: 13px 14px; outline: none; transition: border-color .18s, box-shadow .18s, background .18s;
+    }
+    input::placeholder, textarea::placeholder { color: #60718b; }
+    input:focus, textarea:focus { border-color: rgba(144, 187, 255, .75); box-shadow: 0 0 0 3px rgba(130, 172, 255, .1); background: rgba(8, 18, 33, .98); }
+    .password-input { padding-right: 54px; }
+    .reveal-btn { position: absolute; right: 7px; top: 7px; width: 36px; height: 34px; border: 0; border-radius: 8px; color: #8194b0; background: transparent; display: grid; place-items: center; }
+    .reveal-btn:hover { color: #d9e6f9; background: rgba(142, 175, 225, .1); }
+    .reveal-btn svg { width: 16px; height: 16px; }
+    .primary-btn {
+      display: inline-flex; justify-content: center; align-items: center; gap: 10px;
+      min-height: 45px; border: 1px solid rgba(192, 213, 255, .4); border-radius: 11px;
+      padding: 0 18px; color: #091323;
+      background: linear-gradient(105deg, #a7d0ff 0%, #b5a7ff 100%);
+      box-shadow: 0 8px 24px rgba(111, 145, 229, .19);
+      font-size: 12px; font-weight: 850; letter-spacing: .015em; transition: transform .18s, filter .18s, box-shadow .18s;
+    }
+    .primary-btn:hover { transform: translateY(-1px); filter: brightness(1.06); box-shadow: 0 11px 30px rgba(111, 145, 229, .28); }
+    .primary-btn:disabled { opacity: .6; cursor: wait; transform: none; }
+    .primary-btn svg { width: 16px; height: 16px; }
+    .full-btn { width: 100%; margin-top: 22px; }
+    .error { color: var(--red); min-height: 21px; margin: 9px 0 0; font-size: 12px; }
+    .auth-note { display: flex; gap: 9px; align-items: flex-start; margin-top: 23px; padding-top: 18px; border-top: 1px solid var(--line); color: #788ba7; font-size: 11px; line-height: 1.6; }
+    .auth-note svg { flex: 0 0 auto; width: 15px; height: 15px; color: #86d9bc; margin-top: 1px; }
+    .page-foot { padding: 24px 20px 35px; color: #5f718c; text-align: center; font-size: 10px; letter-spacing: .035em; }
+    .hidden { display: none !important; }
+
+    /* Signed-in reviewer workspace */
+    .workspace { max-width: 1390px; margin: 0 auto; padding: 30px 42px 50px; }
+    .workspace-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; margin: 6px 0 25px; }
+    .workspace-head h1 { margin: 8px 0 6px; font-size: clamp(29px, 3.6vw, 42px); }
+    .workspace-head p { margin: 0; color: var(--muted); font-size: 13px; }
+    .workspace-grid { display: grid; grid-template-columns: 235px minmax(0, 1fr); gap: 22px; align-items: start; }
+    .sidebar { display: flex; flex-direction: column; gap: 15px; }
+    .side-card, .content-card, .metric-card { border: 1px solid var(--line); border-radius: 17px; background: rgba(15, 25, 43, .85); box-shadow: 0 14px 44px rgba(0, 0, 0, .13); }
+    .side-card { padding: 17px; }
+    .side-label { margin: 0 0 13px; color: #7185a1; font-size: 9px; font-weight: 850; letter-spacing: .17em; text-transform: uppercase; }
+    .nav-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 11px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #afbdd1; text-align: left; font-size: 12px; font-weight: 650; }
+    .nav-item.active { border-color: rgba(141, 182, 255, .18); background: rgba(110, 150, 222, .12); color: #dce9ff; }
+    .nav-item svg { width: 16px; height: 16px; color: #93b9f2; }
+    .workspace-status { display: flex; align-items: center; gap: 9px; color: #a9b9cf; font-size: 11px; }
+    .status-ring { width: 27px; height: 27px; display: grid; place-items: center; border-radius: 9px; background: rgba(112, 220, 184, .1); color: var(--mint); }
+    .status-ring svg { width: 14px; height: 14px; }
+    .side-help { color: #8fa0b9; font-size: 11px; line-height: 1.7; }
+    .side-help strong { color: #d0dced; font-weight: 700; }
+    .side-divider { height: 1px; background: var(--line); margin: 13px 0; }
+    .workspace-main { min-width: 0; }
+    .metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 17px; }
+    .metric-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; min-height: 76px; }
+    .metric-icon { width: 36px; height: 36px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 11px; background: rgba(121, 157, 226, .12); color: #a9caff; }
+    .metric-icon svg { width: 17px; height: 17px; }
+    .metric-value { color: #e4edfa; font-size: 12px; font-weight: 800; }
+    .metric-label { color: #7f91ab; font-size: 10px; margin-top: 2px; }
+    .content-card { padding: 22px; }
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; margin-bottom: 21px; }
+    .card-top h2 { margin: 4px 0 4px; font-size: 19px; letter-spacing: -.025em; }
+    .card-top p { color: var(--muted); margin: 0; font-size: 11px; }
+    .step-pill { display: inline-flex; gap: 7px; align-items: center; border: 1px solid rgba(135, 177, 245, .17); background: rgba(108, 145, 207, .09); color: #adc9f5; padding: 7px 10px; border-radius: 999px; font-size: 9px; font-weight: 850; letter-spacing: .1em; white-space: nowrap; }
+    .step-pill b { width: 17px; height: 17px; display: grid; place-items: center; border-radius: 50%; background: rgba(139, 184, 255, .2); font-size: 9px; }
+    .source-tabs { display: inline-flex; align-items: center; gap: 4px; padding: 4px; border: 1px solid var(--line); background: #0a1423; border-radius: 11px; margin-bottom: 13px; }
+    .source-tab { border: 0; border-radius: 8px; padding: 8px 13px; color: #8294af; background: transparent; font-size: 11px; font-weight: 750; }
+    .source-tab.active { color: #e0eafe; background: rgba(118, 153, 219, .17); box-shadow: inset 0 0 0 1px rgba(144, 181, 244, .15); }
+    .source-panel { padding: 16px; border: 1px solid rgba(128, 157, 202, .16); background: rgba(7, 15, 27, .42); border-radius: 13px; }
+    .source-panel label { margin-top: 0; }
+    .source-panel input { min-height: 43px; }
+    .editor-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid rgba(128, 157, 202, .18); border-bottom: 0; border-radius: 10px 10px 0 0; background: #101b2d; color: #8fa2be; font-size: 10px; }
+    .editor-file { display: flex; align-items: center; gap: 8px; }
+    .file-dot { width: 7px; height: 7px; border-radius: 2px; background: #9dbbff; }
+    .editor-lang { color: #9eadd0; border: 1px solid var(--line); padding: 3px 7px; border-radius: 5px; }
+    textarea { display: block; min-height: 265px; resize: vertical; border-radius: 0 0 10px 10px; border-color: rgba(128, 157, 202, .18); background: #091321; padding: 15px; font: 12px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; tab-size: 2; }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; margin-top: 15px; }
+    .field-grid label { margin: 0 0 7px; }
+    .field-grid input { min-height: 41px; }
+    .form-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 18px; }
+    .limit-note { display: flex; gap: 8px; align-items: center; color: #72849f; font-size: 10px; }
+    .limit-note svg { width: 14px; height: 14px; color: #84d7b9; }
+    .logout-btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: 10px; background: rgba(15, 26, 44, .72); color: #aebbd0; padding: 9px 12px; font-size: 11px; font-weight: 750; }
+    .logout-btn:hover { color: #fff; border-color: var(--line-strong); background: rgba(29, 44, 68, .82); }
+    .logout-btn svg { width: 14px; height: 14px; }
+    .results { margin-top: 18px; }
+    .report-banner { display: flex; justify-content: space-between; align-items: center; gap: 16px; border: 1px solid var(--line); border-radius: 14px; padding: 17px; background: linear-gradient(110deg, rgba(35, 53, 82, .55), rgba(22, 29, 52, .46)); }
+    .report-banner h2 { margin: 0 0 5px; font-size: 17px; }
+    .report-banner p { margin: 0; color: #a5b4c9; font-size: 11px; max-width: 660px; }
+    .risk { flex: 0 0 auto; border-radius: 999px; padding: 7px 12px; font-size: 10px; font-weight: 850; letter-spacing: .07em; text-transform: uppercase; background: #24364f; color: #cfdbef; }
+    .risk.high { color: #ffb1b8; background: rgba(119, 44, 59, .35); border: 1px solid rgba(255, 146, 157, .22); }
+    .risk.medium { color: #ffdb9e; background: rgba(113, 81, 34, .3); border: 1px solid rgba(255, 207, 131, .2); }
+    .risk.low { color: #9ce9ca; background: rgba(31, 91, 72, .3); border: 1px solid rgba(131, 228, 192, .2); }
+    .report-meta { margin: 11px 2px 18px; color: #72849f; font-size: 10px; }
+    .report-counts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+    .count-chip { display: inline-flex; align-items: center; gap: 7px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); color: #bac8dc; background: rgba(12, 22, 38, .72); font-size: 10px; }
+    .count-chip strong { color: #eff4fb; }
+    .result-section-title { margin: 19px 0 10px; color: #e4ebf6; font-size: 13px; font-weight: 800; }
+    .finding { margin: 10px 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: rgba(9, 17, 30, .72); }
+    .finding-head { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-bottom: 8px; }
+    .tag { display: inline-flex; align-items: center; border-radius: 6px; padding: 4px 7px; background: rgba(96, 125, 168, .18); color: #c7d6eb; font-size: 9px; font-weight: 850; text-transform: uppercase; letter-spacing: .06em; }
+    .tag.high { background: rgba(132, 49, 63, .28); color: #ffb4ba; }
+    .tag.medium { background: rgba(132, 93, 34, .27); color: #ffdc9e; }
+    .tag.low { background: rgba(35, 107, 82, .25); color: #9ee9cb; }
+    .finding h3 { margin: 0 0 6px; color: #e9eff8; font-size: 13px; }
+    .finding p { margin: 7px 0; color: #a7b6cb; font-size: 11px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .finding .fix { margin-top: 11px; padding: 9px 11px; border-left: 2px solid #8dbbff; border-radius: 0 7px 7px 0; background: rgba(105, 148, 220, .08); color: #bfd4f4; }
+    .finding .confidence { color: #7487a2; font-size: 10px; }
+    .empty-report { padding: 20px; border: 1px dashed var(--line-strong); border-radius: 12px; color: #a6b7cf; font-size: 12px; text-align: center; }
+    .positive-list { margin: 8px 0 0; padding-left: 19px; color: #9db5ac; font-size: 11px; line-height: 1.9; }
+    .report-model { margin: 16px 2px 0; color: #6f819c; font-size: 10px; }
+    .workspace-foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 19px 2px 0; color: #5e7089; font-size: 10px; }
+    @media (max-width: 1000px) {
+      .topbar { padding: 0 25px; }
+      .shell { padding: 34px 25px 35px; }
+      .login-layout { gap: 28px; }
+      .workspace { padding: 25px; }
+      .workspace-grid { grid-template-columns: 205px minmax(0, 1fr); gap: 15px; }
+      .metric-grid { gap: 8px; }
+      .metric-card { padding: 12px; }
+    }
+    @media (max-width: 760px) {
+      .topbar { height: 66px; padding: 0 18px; }
+      .topbar-label { display: none; }
+      .shell { padding: 25px 18px 20px; }
+      .login-layout { grid-template-columns: 1fr; gap: 22px; min-height: unset; margin-top: 14px; }
+      .login-copy { padding: 16px 0 0; }
+      .login-copy h1 { max-width: 600px; font-size: clamp(38px, 10vw, 52px); }
+      .visual-card { display: none; }
+      .auth-card { max-width: 520px; width: 100%; margin: 0 auto; padding: 25px; }
+      .page-foot { padding-top: 19px; }
+      .workspace { padding: 23px 17px 35px; }
+      .workspace-head { align-items: flex-start; }
+      .workspace-grid { grid-template-columns: 1fr; }
+      .sidebar { display: grid; grid-template-columns: 1fr 1fr; }
+      .sidebar .side-card:first-child { grid-column: 1 / -1; }
+      .metric-grid { grid-template-columns: 1fr; }
+      .metric-card { min-height: 64px; }
+      .workspace-head h1 { font-size: 34px; }
+    }
+    @media (max-width: 480px) {
+      .secure-pill { padding: 7px 9px; font-size: 8px; }
+      .brand-name { font-size: 11px; }
+      .brand-mark { width: 35px; height: 35px; }
+      .auth-card { padding: 21px; }
+      .workspace-head { flex-direction: column; }
+      .workspace-head .logout-btn { align-self: stretch; justify-content: center; }
+      .sidebar { grid-template-columns: 1fr; }
+      .card-top { flex-direction: column; }
+      .content-card { padding: 15px; }
+      .field-grid { grid-template-columns: 1fr; }
+      .form-footer { align-items: flex-start; flex-direction: column; }
+      .form-footer .primary-btn { width: 100%; }
+      .report-banner { align-items: flex-start; flex-direction: column; }
+      .report-banner .risk { align-self: flex-start; }
+    }
   </style>
 </head>
 <body>
-  <main class="wrap">
-    <header>
-      <div class="brand"><div class="mark">A</div><div>ALTA <span style="color:#91baff">/</span> AI REVIEWER</div></div>
-      <div class="eyebrow">Standalone service</div>
+  <div class="page">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="ALTA AI Code Reviewer home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 18.5 12 4l7 14.5h-4.1L12 12l-2.9 6.5H5Z" fill="currentColor"/><path d="M9.5 15.1h5" stroke="#526ea9" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </span>
+        <span><span class="brand-name">ALTA <span>/</span> REVIEW</span><span class="brand-sub">CODE INTELLIGENCE</span></span>
+      </a>
+      <div class="topbar-right">
+        <span class="topbar-label">Independent developer workspace</span>
+        <span class="secure-pill"><i class="dot"></i> Private workspace</span>
+      </div>
     </header>
 
-    <section>
-      <div class="eyebrow">Defensive code analysis</div>
-      <h1>Find issues before they reach production.</h1>
-      <p class="intro">Review pasted source code or a public GitHub file. The reviewer checks for bugs, security weaknesses and maintainability concerns. Submitted code is analyzed as text and is never executed.</p>
-    </section>
+    <main id="loginPanel" class="shell">
+      <div class="login-layout">
+        <section class="login-copy">
+          <div class="eyebrow">AI-assisted defensive code analysis</div>
+          <h1>Build with confidence.<br><span class="gradient">Ship with clarity.</span></h1>
+          <p class="lead">A focused space to inspect source code, surface potential bugs and security concerns, and get practical suggestions before your next release.</p>
+          <div class="feature-row">
+            <span class="feature-chip"><svg viewBox="0 0 20 20" fill="none"><path d="m4 10 4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Actionable findings</span>
+            <span class="feature-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5 4 5v4.8c0 3.5 2.4 6.2 6 7.7 3.6-1.5 6-4.2 6-7.7V5l-6-2.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m7 10 2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Code is never executed</span>
+          </div>
+          <div class="visual-card" aria-hidden="true">
+            <div class="visual-head"><span class="window-dots"><i></i><i></i><i></i></span><span>review-sample.ts</span><span>TS</span></div>
+            <div class="code-lines">
+              <div class="code-line"><span class="line-no">01</span><span><span class="code-purple">async function</span> <span class="code-blue">loadProfile</span>(id) {</span></div>
+              <div class="code-line"><span class="line-no">02</span><span>&nbsp;&nbsp;<span class="code-purple">const</span> user = <span class="code-purple">await</span> db.users.find(id);</span></div>
+              <div class="code-line"><span class="line-no">03</span><span>&nbsp;&nbsp;<span class="code-purple">if</span> (!user) <span class="code-purple">return</span> <span class="code-orange">null</span>;</span></div>
+              <div class="code-line"><span class="line-no">04</span><span>&nbsp;&nbsp;<span class="code-purple">return</span> user.profile;</span></div>
+              <div class="code-line"><span class="line-no">05</span><span>}</span></div>
+            </div>
+            <div class="scan-chip"><svg viewBox="0 0 20 20" fill="none"><path d="m4 10 4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Ready for review</div>
+          </div>
+        </section>
 
-    <section id="loginPanel" class="panel narrow">
-      <h2 style="margin:0 0 5px">Private reviewer access</h2>
-      <p class="muted">Enter the access password configured for this Render service.</p>
-      <form id="loginForm">
-        <label for="password">Access password</label>
-        <input id="password" type="password" autocomplete="current-password" required>
-        <div class="actions"><button id="loginButton" type="submit">Sign in</button></div>
-        <div id="loginError" class="error" role="alert"></div>
-      </form>
-    </section>
-
-    <section id="appPanel" class="panel hidden">
-      <div class="topline">
-        <div><h2 style="margin:0">New code review</h2><p class="muted" style="margin:3px 0 0">Use exactly one source: paste code or provide a public GitHub file URL.</p></div>
-        <button id="logoutButton" class="secondary" type="button">Sign out</button>
+        <section class="auth-card" aria-labelledby="loginTitle">
+          <div class="auth-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10V7a4 4 0 1 1 8 0v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="15" r="1.3" fill="currentColor"/></svg></div>
+          <div class="eyebrow">Restricted access</div>
+          <h2 id="loginTitle">Welcome back</h2>
+          <p class="muted">Sign in to open your private code review workspace.</p>
+          <form id="loginForm">
+            <label for="password">Workspace password</label>
+            <div class="field-wrap">
+              <input class="password-input" id="password" type="password" autocomplete="current-password" placeholder="Enter your access password" required>
+              <button class="reveal-btn" id="togglePassword" type="button" aria-label="Show password" title="Show password"><svg viewBox="0 0 24 24" fill="none"><path d="M2.5 12s3.3-6 9.5-6 9.5 6 9.5 6-3.3 6-9.5 6-9.5-6-9.5-6Z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.6"/></svg></button>
+            </div>
+            <button id="loginButton" class="primary-btn full-btn" type="submit">Enter workspace <svg viewBox="0 0 20 20" fill="none"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            <div id="loginError" class="error" role="alert"></div>
+          </form>
+          <div class="auth-note"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5 4 5v4.8c0 3.5 2.4 6.2 6 7.7 3.6-1.5 6-4.2 6-7.7V5l-6-2.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m7 10 2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>Your session is protected with a secure, HTTP-only cookie. Keep your workspace password private.</span></div>
+        </section>
       </div>
-      <form id="reviewForm">
-        <label for="githubUrl">Public GitHub file URL <span class="muted">(optional)</span></label>
-        <input id="githubUrl" type="url" placeholder="https://github.com/owner/repo/blob/main/src/index.ts">
-        <div style="text-align:center;color:#72859e;margin:10px 0;font-size:12px">OR PASTE SOURCE CODE BELOW</div>
-        <label for="code">Source code</label>
-        <textarea id="code" spellcheck="false" placeholder="Paste the code you want reviewed..."></textarea>
-        <div class="row">
-          <div><label for="filename">Filename</label><input id="filename" maxlength="160" placeholder="example.ts"></div>
-          <div><label for="language">Language <span class="muted">(optional)</span></label><input id="language" maxlength="60" placeholder="Auto-detect from filename"></div>
-        </div>
-        <div class="actions">
-          <button id="reviewButton" type="submit">Analyze code</button>
-          <span class="hint">Maximum source size: 30,000 characters by default · 5 reviews/minute</span>
-        </div>
-        <div id="reviewError" class="error" role="alert"></div>
-      </form>
-      <div id="results" class="results hidden" aria-live="polite"></div>
-    </section>
+    </main>
 
-    <p class="foot">AI findings are suggestions, not proof. Verify every issue and review suggested changes manually.</p>
-  </main>
+    <main id="appPanel" class="workspace hidden">
+      <div class="workspace-head">
+        <div>
+          <div class="eyebrow">Developer workspace / overview</div>
+          <h1>Code review workspace</h1>
+          <p>Inspect a source file and turn potential issues into clear next steps.</p>
+        </div>
+        <button id="logoutButton" class="logout-btn" type="button"><svg viewBox="0 0 20 20" fill="none"><path d="M8 4H4.5A1.5 1.5 0 0 0 3 5.5v9A1.5 1.5 0 0 0 4.5 16H8m4-3 3-3-3-3m3 3H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Sign out</button>
+      </div>
+
+      <div class="workspace-grid">
+        <aside class="sidebar">
+          <section class="side-card">
+            <p class="side-label">Workspace</p>
+            <div class="nav-item active"><svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>New code review</div>
+            <div class="side-divider"></div>
+            <div class="workspace-status"><span class="status-ring"><svg viewBox="0 0 20 20" fill="none"><path d="m4 10 4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><strong style="display:block;color:#dce7f5;font-size:11px">Session active</strong><span style="color:#71849f;font-size:10px">Private access enabled</span></span></div>
+          </section>
+          <section class="side-card">
+            <p class="side-label">Review workflow</p>
+            <div class="side-help"><strong>01 · Add source</strong><br>Paste code or point to a public GitHub file.</div>
+            <div class="side-divider"></div>
+            <div class="side-help"><strong>02 · Analyze</strong><br>AI checks for bugs, security issues and maintainability concerns.</div>
+            <div class="side-divider"></div>
+            <div class="side-help"><strong>03 · Inspect findings</strong><br>Review suggested fixes and verify them in your project.</div>
+          </section>
+          <section class="side-card">
+            <p class="side-label">Safety note</p>
+            <div class="side-help">Submitted source is treated as <strong>untrusted text</strong>. This reviewer does not run or execute your code.</div>
+          </section>
+        </aside>
+
+        <section class="workspace-main">
+          <div class="metric-grid" aria-label="Review limits and capabilities">
+            <div class="metric-card"><span class="metric-icon"><svg viewBox="0 0 20 20" fill="none"><path d="M5 3.5h7l3 3v10H5v-13Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M12 3.5v3h3M7.5 10h5M7.5 13h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span><span><span class="metric-value">Single-file review</span><span class="metric-label">Paste source or GitHub file</span></span></div>
+            <div class="metric-card"><span class="metric-icon"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5 4 5v4.8c0 3.5 2.4 6.2 6 7.7 3.6-1.5 6-4.2 6-7.7V5l-6-2.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m7 10 2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span><span><span class="metric-value">30,000 characters</span><span class="metric-label">Default maximum source size</span></span></div>
+            <div class="metric-card"><span class="metric-icon"><svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M10 6v4l2.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></span><span><span class="metric-value">5 reviews / minute</span><span class="metric-label">Request rate limit</span></span></div>
+          </div>
+
+          <section class="content-card">
+            <div class="card-top">
+              <div><div class="eyebrow">Start a new analysis</div><h2>Choose your source code</h2><p>Submit one source at a time for a focused review.</p></div>
+              <span class="step-pill"><b>1</b> SOURCE INPUT</span>
+            </div>
+
+            <div class="source-tabs" role="tablist" aria-label="Source type">
+              <button class="source-tab active" id="pasteTab" type="button" role="tab" aria-selected="true">Paste code</button>
+              <button class="source-tab" id="githubTab" type="button" role="tab" aria-selected="false">GitHub file URL</button>
+            </div>
+
+            <form id="reviewForm">
+              <div id="codeSource" class="source-panel">
+                <label for="code">Source code</label>
+                <div class="editor-toolbar"><span class="editor-file"><i class="file-dot"></i><span id="editorFilename">untitled-file</span></span><span class="editor-lang" id="editorLanguage">AUTO DETECT</span></div>
+                <textarea id="code" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="// Paste the code you want reviewed here...&#10;// The reviewer will analyze this as text. It will not execute it."></textarea>
+              </div>
+              <div id="githubSource" class="source-panel hidden">
+                <label for="githubUrl">Public GitHub file URL</label>
+                <input id="githubUrl" type="url" placeholder="https://github.com/owner/repository/blob/main/src/index.ts">
+                <p class="muted" style="margin:10px 0 0;font-size:10px">Use a direct public file link. Private repositories and whole-repository URLs are not supported in this version.</p>
+              </div>
+
+              <div class="field-grid">
+                <div><label for="filename">Filename <span class="muted">(optional)</span></label><input id="filename" maxlength="160" placeholder="e.g. auth-controller.ts"></div>
+                <div><label for="language">Language <span class="muted">(optional)</span></label><input id="language" maxlength="60" placeholder="Auto-detect from filename"></div>
+              </div>
+              <div class="form-footer">
+                <span class="limit-note"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5 4 5v4.8c0 3.5 2.4 6.2 6 7.7 3.6-1.5 6-4.2 6-7.7V5l-6-2.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m7 10 2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Private session · Code is not executed</span>
+                <button id="reviewButton" class="primary-btn" type="submit">Analyze code <svg viewBox="0 0 20 20" fill="none"><path d="M10 3v14M3 10h14m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              </div>
+              <div id="reviewError" class="error" role="alert"></div>
+            </form>
+          </section>
+
+          <section id="results" class="results hidden" aria-live="polite"></section>
+          <div class="workspace-foot"><span>AI findings are suggestions, not proof. Verify issues and test proposed changes manually.</span><span>ALTA · CODE INTELLIGENCE</span></div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="page-foot">ALTA AI CODE REVIEWER <span style="padding:0 7px;color:#3e5069">·</span> Build carefully. Review responsibly.</footer>
+  </div>
+
 <script>
   const loginPanel = document.getElementById("loginPanel");
   const appPanel = document.getElementById("appPanel");
@@ -109,9 +426,18 @@
   const results = document.getElementById("results");
   const loginButton = document.getElementById("loginButton");
   const reviewButton = document.getElementById("reviewButton");
+  const codeInput = document.getElementById("code");
+  const githubInput = document.getElementById("githubUrl");
+  const filenameInput = document.getElementById("filename");
+  const languageInput = document.getElementById("language");
+  let activeSource = "code";
 
   async function api(url, options = {}) {
-    const response = await fetch(url, { credentials: "same-origin", ...options, headers: { "Content-Type": "application/json", ...(options.headers || {}) } });
+    const response = await fetch(url, {
+      credentials: "same-origin",
+      ...options,
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) }
+    });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Request failed.");
     return data;
@@ -120,12 +446,28 @@
   function showApp(authed) {
     loginPanel.classList.toggle("hidden", authed);
     appPanel.classList.toggle("hidden", !authed);
+    if (!authed) {
+      document.getElementById("password").value = "";
+    }
+  }
+
+  function setSource(source) {
+    activeSource = source;
+    const isCode = source === "code";
+    document.getElementById("codeSource").classList.toggle("hidden", !isCode);
+    document.getElementById("githubSource").classList.toggle("hidden", isCode);
+    document.getElementById("pasteTab").classList.toggle("active", isCode);
+    document.getElementById("githubTab").classList.toggle("active", !isCode);
+    document.getElementById("pasteTab").setAttribute("aria-selected", String(isCode));
+    document.getElementById("githubTab").setAttribute("aria-selected", String(!isCode));
+    if (isCode) codeInput.focus();
+    else githubInput.focus();
   }
 
   function addText(parent, tag, text, className) {
     const node = document.createElement(tag);
     if (className) node.className = className;
-    node.textContent = text;
+    node.textContent = text == null ? "" : String(text);
     parent.appendChild(node);
     return node;
   }
@@ -133,40 +475,84 @@
   function renderReport(data) {
     results.replaceChildren();
     results.classList.remove("hidden");
-    const heading = document.createElement("div");
-    heading.className = "result-head";
-    addText(heading, "h2", "Review report");
-    addText(heading, "span", "Overall risk: " + data.report.overallRisk, "risk " + data.report.overallRisk.toLowerCase());
-    results.appendChild(heading);
-    addText(results, "p", data.report.summary);
-    addText(results, "p", data.source.filename + " · " + data.source.language + (data.source.sourceUrl ? " · public GitHub file" : ""), "muted");
-    addText(results, "h3", "Findings (" + data.report.findings.length + ")");
-    if (!data.report.findings.length) addText(results, "p", "No concrete issues were identified in the submitted code.");
-    for (const finding of data.report.findings) {
+
+    const report = data.report;
+    const findings = report.findings || [];
+    const highCount = findings.filter(item => item.severity === "High").length;
+    const mediumCount = findings.filter(item => item.severity === "Medium").length;
+    const lowCount = findings.filter(item => item.severity === "Low").length;
+
+    const banner = document.createElement("div");
+    banner.className = "report-banner";
+    const bannerText = document.createElement("div");
+    addText(bannerText, "h2", "Review report");
+    addText(bannerText, "p", report.summary);
+    banner.appendChild(bannerText);
+    addText(banner, "span", "Overall risk: " + report.overallRisk, "risk " + report.overallRisk.toLowerCase());
+    results.appendChild(banner);
+
+    addText(results, "p", data.source.filename + " · " + data.source.language + (data.source.sourceUrl ? " · Public GitHub file" : " · Pasted source"), "report-meta");
+
+    const counts = document.createElement("div");
+    counts.className = "report-counts";
+    addText(counts, "span", "Total findings: " + findings.length, "count-chip");
+    const high = addText(counts, "span", "", "count-chip");
+    high.appendChild(document.createTextNode("High "));
+    addText(high, "strong", highCount);
+    const medium = addText(counts, "span", "", "count-chip");
+    medium.appendChild(document.createTextNode("Medium "));
+    addText(medium, "strong", mediumCount);
+    const low = addText(counts, "span", "", "count-chip");
+    low.appendChild(document.createTextNode("Low "));
+    addText(low, "strong", lowCount);
+    results.appendChild(counts);
+
+    addText(results, "h3", "Findings", "result-section-title");
+    if (!findings.length) {
+      addText(results, "div", "No concrete issues were identified in the supplied source. This result is limited to the file you provided.", "empty-report");
+    }
+
+    for (const finding of findings) {
       const card = document.createElement("article");
       card.className = "finding";
-      addText(card, "span", finding.category, "tag");
-      addText(card, "span", finding.severity, "tag " + finding.severity.toLowerCase());
-      if (finding.line) addText(card, "span", "Line " + finding.line, "tag");
+      const head = document.createElement("div");
+      head.className = "finding-head";
+      addText(head, "span", finding.category, "tag");
+      addText(head, "span", finding.severity, "tag " + finding.severity.toLowerCase());
+      if (finding.line) addText(head, "span", "Line " + finding.line, "tag");
+      card.appendChild(head);
       addText(card, "h3", finding.title);
       addText(card, "p", finding.description);
       addText(card, "p", "Suggested fix: " + finding.suggestedFix, "fix");
-      addText(card, "p", "Confidence: " + Math.round(finding.confidence * 100) + "%", "muted");
+      addText(card, "p", "Confidence: " + Math.round(finding.confidence * 100) + "%", "confidence");
       results.appendChild(card);
     }
-    if (data.report.positives.length) {
-      addText(results, "h3", "What looks good");
+
+    if (report.positives && report.positives.length) {
+      addText(results, "h3", "What looks good", "result-section-title");
       const list = document.createElement("ul");
-      for (const item of data.report.positives) addText(list, "li", item);
+      list.className = "positive-list";
+      for (const item of report.positives) addText(list, "li", item);
       results.appendChild(list);
     }
-    if (data.usage) addText(results, "p", "Model: " + data.model + " · Tokens: " + data.usage.totalTokens, "muted");
+
+    if (data.usage) addText(results, "p", "Model: " + data.model + " · Tokens used: " + data.usage.totalTokens, "report-model");
+    results.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+
+  document.getElementById("togglePassword").addEventListener("click", () => {
+    const password = document.getElementById("password");
+    const show = password.type === "password";
+    password.type = show ? "text" : "password";
+    document.getElementById("togglePassword").setAttribute("aria-label", show ? "Hide password" : "Show password");
+    document.getElementById("togglePassword").setAttribute("title", show ? "Hide password" : "Show password");
+  });
 
   document.getElementById("loginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     loginError.textContent = "";
     loginButton.disabled = true;
+    loginButton.textContent = "Signing in...";
     try {
       await api("/api/login", { method: "POST", body: JSON.stringify({ password: document.getElementById("password").value }) });
       document.getElementById("password").value = "";
@@ -175,6 +561,7 @@
       loginError.textContent = error.message;
     } finally {
       loginButton.disabled = false;
+      loginButton.innerHTML = 'Enter workspace <svg viewBox="0 0 20 20" fill="none"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     }
   });
 
@@ -184,19 +571,31 @@
     showApp(false);
   });
 
+  document.getElementById("pasteTab").addEventListener("click", () => setSource("code"));
+  document.getElementById("githubTab").addEventListener("click", () => setSource("github"));
+  codeInput.addEventListener("input", () => {
+    const name = filenameInput.value.trim();
+    document.getElementById("editorFilename").textContent = name || "untitled-file";
+    document.getElementById("editorLanguage").textContent = languageInput.value.trim() ? languageInput.value.trim().toUpperCase() : "AUTO DETECT";
+  });
+  filenameInput.addEventListener("input", () => {
+    document.getElementById("editorFilename").textContent = filenameInput.value.trim() || "untitled-file";
+  });
+  languageInput.addEventListener("input", () => {
+    document.getElementById("editorLanguage").textContent = languageInput.value.trim() ? languageInput.value.trim().toUpperCase() : "AUTO DETECT";
+  });
+
   document.getElementById("reviewForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     reviewError.textContent = "";
     results.classList.add("hidden");
     reviewButton.disabled = true;
-    reviewButton.textContent = "Reviewing...";
-    const code = document.getElementById("code").value;
-    const githubUrl = document.getElementById("githubUrl").value;
+    reviewButton.textContent = "Analyzing source...";
     const payload = {
-      code: code.trim() ? code : undefined,
-      githubUrl: githubUrl.trim() ? githubUrl : undefined,
-      filename: document.getElementById("filename").value,
-      language: document.getElementById("language").value
+      code: activeSource === "code" && codeInput.value.trim() ? codeInput.value : undefined,
+      githubUrl: activeSource === "github" && githubInput.value.trim() ? githubInput.value : undefined,
+      filename: filenameInput.value,
+      language: languageInput.value
     };
     try {
       const data = await api("/api/analyze", { method: "POST", body: JSON.stringify(payload) });
@@ -206,7 +605,7 @@
       reviewError.textContent = error.message;
     } finally {
       reviewButton.disabled = false;
-      reviewButton.textContent = "Analyze code";
+      reviewButton.innerHTML = 'Analyze code <svg viewBox="0 0 20 20" fill="none"><path d="M10 3v14M3 10h14m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
     }
   });
 
