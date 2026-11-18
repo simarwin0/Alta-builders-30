@@ -150,9 +150,8 @@
     .error { color: var(--red); min-height: 21px; margin: 9px 0 0; font-size: 12px; }
     .auth-note { display: flex; gap: 9px; align-items: flex-start; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); color: #788ba7; font-size: 11px; line-height: 1.6; }
     .auth-note svg { flex: 0 0 auto; width: 15px; height: 15px; color: #86d9bc; margin-top: 1px; }
-    .google-btn { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; min-height: 48px; margin-top: 20px; padding: 0 16px; border: 1px solid rgba(255,255,255,.78); border-radius: 11px; background: #f8faff; color: #1e293b; text-decoration: none; font-size: 13px; font-weight: 800; box-shadow: 0 8px 22px rgba(0,0,0,.13); transition: transform .18s, background .18s; }
-    .google-btn:hover { transform: translateY(-1px); background: #fff; }
-    .google-btn svg { width: 19px; height: 19px; flex: 0 0 auto; }
+    .google-signin-container { display: flex; justify-content: center; width: 100%; min-height: 44px; margin-top: 20px; }
+    .google-signin-container iframe { max-width: 100%; border-radius: 8px; }
     .auth-divider { display: flex; align-items: center; gap: 12px; margin: 17px 0 10px; color: #667994; font-size: 9px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
     .auth-divider::before, .auth-divider::after { content: ""; height: 1px; flex: 1; background: var(--line); }
     .backup-auth { border: 1px solid var(--line); border-radius: 10px; background: rgba(7,15,28,.3); }
@@ -332,10 +331,7 @@
           <div class="eyebrow">Google account access</div>
           <h2 id="loginTitle">Welcome back</h2>
           <p class="muted">Continue with your approved Google account to open your private code review workspace.</p>
-          <a class="google-btn" href="/auth/google" id="googleSignInButton">
-            <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h11a9.4 9.4 0 0 1-4.1 6.2v5.1h6.6c3.9-3.6 6.1-8.9 6.1-15Z"/><path fill="#34A853" d="M24 44c5.5 0 10.1-1.8 13.5-4.9l-6.6-5.1c-1.8 1.2-4.1 2-6.9 2-5.3 0-9.8-3.6-11.4-8.4H5.8v5.3A20 20 0 0 0 24 44Z"/><path fill="#4A90E2" d="M12.6 27.6a12 12 0 0 1 0-7.2v-5.3H5.8a20 20 0 0 0 0 17.8l6.8-5.3Z"/><path fill="#EA4335" d="M24 12c3 0 5.7 1 7.8 3.1l5.8-5.8C34.1 6 29.5 4 24 4A20 20 0 0 0 5.8 15.1l6.8 5.3C14.2 15.6 18.7 12 24 12Z"/></svg>
-            Continue with Google
-          </a>
+          <div id="googleSignInButton" class="google-signin-container" aria-label="Sign in with Google"></div>
           <div id="authMessage" class="error" role="alert"></div>
           <div class="auth-divider">or use owner access</div>
           <details class="backup-auth">
@@ -350,7 +346,7 @@
               <div id="loginError" class="error" role="alert"></div>
             </form>
           </details>
-          <div class="auth-note"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5 4 5v4.8c0 3.5 2.4 6.2 6 7.7 3.6-1.5 6-4.2 6-7.7V5l-6-2.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m7 10 2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>Google handles your sign-in securely. ALTA never receives or stores your Gmail password. Only approved email addresses can enter.</span></div>
+          <div class="auth-note"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5 4 5v4.8c0 3.5 2.4 6.2 6 7.7 3.6-1.5 6-4.2 6-7.7V5l-6-2.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m7 10 2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>Google securely verifies your identity. ALTA never receives or stores your Gmail password. Access follows the reviewer account policy.</span></div>
         </section>
       </div>
     </main>
@@ -439,6 +435,7 @@
     <footer class="page-foot">ALTA AI CODE REVIEWER <span style="padding:0 7px;color:#3e5069">·</span> Build carefully. Review responsibly.</footer>
   </div>
 
+<script src="https://accounts.google.com/gsi/client" async defer id="googleIdentityServices"></script>
 <script>
   const loginPanel = document.getElementById("loginPanel");
   const appPanel = document.getElementById("appPanel");
@@ -462,6 +459,64 @@
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Request failed.");
     return data;
+  }
+
+  function waitForGoogleIdentityServices() {
+    if (window.google?.accounts?.id) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const script = document.getElementById("googleIdentityServices");
+      if (!script) return reject(new Error("Google sign-in could not be loaded. Check your connection or use owner access."));
+      script.addEventListener("load", () => {
+        if (window.google?.accounts?.id) resolve();
+        else reject(new Error("Google sign-in did not initialize. Please refresh the page."));
+      }, { once: true });
+      script.addEventListener("error", () => {
+        reject(new Error("Google sign-in could not be loaded. Check your connection or use owner access."));
+      }, { once: true });
+    });
+  }
+
+  async function initializeGoogleSignIn() {
+    const mount = document.getElementById("googleSignInButton");
+    if (!mount) return;
+    try {
+      const config = await api("/api/auth/google/bootstrap");
+      await waitForGoogleIdentityServices();
+      window.google.accounts.id.initialize({
+        client_id: config.clientId,
+        nonce: config.nonce,
+        ux_mode: "popup",
+        auto_select: false,
+        callback: async (credentialResponse) => {
+          const message = document.getElementById("authMessage");
+          message.textContent = "";
+          try {
+            if (!credentialResponse || typeof credentialResponse.credential !== "string") {
+              throw new Error("Google did not return a sign-in credential. Please try again.");
+            }
+            const signedIn = await api("/api/auth/google/credential", {
+              method: "POST",
+              body: JSON.stringify({ credential: credentialResponse.credential })
+            });
+            showApp(true, signedIn.email || "");
+          } catch (error) {
+            message.textContent = error.message || "Google sign-in failed. Please try again.";
+          }
+        }
+      });
+      mount.replaceChildren();
+      window.google.accounts.id.renderButton(mount, {
+        type: "standard",
+        theme: "filled_black",
+        size: "large",
+        shape: "rectangular",
+        text: "continue_with",
+        logo_alignment: "left",
+        width: 320
+      });
+    } catch (error) {
+      document.getElementById("authMessage").textContent = error.message || "Google sign-in is unavailable. Use owner access.";
+    }
   }
 
   function showApp(authed, email = "") {
@@ -639,6 +694,7 @@
   });
 
   api("/api/session").then(data => showApp(Boolean(data.authenticated), data.email || "")).catch(() => showApp(false));
+  initializeGoogleSignIn();
 </script>
 </body>
 </html>
