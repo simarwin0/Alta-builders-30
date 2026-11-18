@@ -22,7 +22,19 @@ async function shutdown() {
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
-start().catch((err) => {
-  console.error("Failed to start. Check backend/.env and MongoDB connectivity:", err instanceof Error ? err.name : "unknown error");
+start().catch((err: unknown) => {
+  const error = err instanceof Error
+    ? err as Error & { code?: number | string; codeName?: string }
+    : null;
+  const safeMessage = error?.message
+    ?.replace(/mongodb(?:\+srv)?:\/\/[^\s"'\x60]+/gi, "[REDACTED_MONGODB_URI]")
+    .slice(0, 300);
+
+  console.error("Failed to start. Check backend/.env and MongoDB connectivity:", {
+    name: error?.name ?? "unknown error",
+    code: error?.code,
+    codeName: error?.codeName,
+    message: safeMessage,
+  });
   process.exit(1);
 });
