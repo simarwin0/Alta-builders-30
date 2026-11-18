@@ -298,68 +298,20 @@
         <span><span class="brand-name">ALTA <span>/</span> REVIEW</span><span class="brand-sub">CODE INTELLIGENCE</span></span>
       </a>
       <div class="topbar-right">
-        <span class="topbar-label">Independent developer workspace</span>
-        <span class="secure-pill"><i class="dot"></i> Private workspace</span>
+        <span class="topbar-label">Free public code review</span>
+        <span class="secure-pill"><i class="dot"></i> Open to everyone</span>
       </div>
     </header>
 
-    <main id="loginPanel" class="shell">
-      <div class="login-layout">
-        <section class="login-copy">
-          <div class="eyebrow">AI-assisted defensive code analysis</div>
-          <h1>Build with confidence.<br><span class="gradient">Ship with clarity.</span></h1>
-          <p class="lead">A focused space to inspect source code, surface potential bugs and security concerns, and get practical suggestions before your next release.</p>
-          <div class="feature-row">
-            <span class="feature-chip"><svg viewBox="0 0 20 20" fill="none"><path d="m4 10 4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Actionable findings</span>
-            <span class="feature-chip"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5 4 5v4.8c0 3.5 2.4 6.2 6 7.7 3.6-1.5 6-4.2 6-7.7V5l-6-2.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m7 10 2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Code is never executed</span>
-          </div>
-          <div class="visual-card" aria-hidden="true">
-            <div class="visual-head"><span class="window-dots"><i></i><i></i><i></i></span><span>review-sample.ts</span><span>TS</span></div>
-            <div class="code-lines">
-              <div class="code-line"><span class="line-no">01</span><span><span class="code-purple">async function</span> <span class="code-blue">loadProfile</span>(id) {</span></div>
-              <div class="code-line"><span class="line-no">02</span><span>&nbsp;&nbsp;<span class="code-purple">const</span> user = <span class="code-purple">await</span> db.users.find(id);</span></div>
-              <div class="code-line"><span class="line-no">03</span><span>&nbsp;&nbsp;<span class="code-purple">if</span> (!user) <span class="code-purple">return</span> <span class="code-orange">null</span>;</span></div>
-              <div class="code-line"><span class="line-no">04</span><span>&nbsp;&nbsp;<span class="code-purple">return</span> user.profile;</span></div>
-              <div class="code-line"><span class="line-no">05</span><span>}</span></div>
-            </div>
-            <div class="scan-chip"><svg viewBox="0 0 20 20" fill="none"><path d="m4 10 4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Ready for review</div>
-          </div>
-        </section>
-
-        <section class="auth-card" aria-labelledby="loginTitle">
-          <div class="auth-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="11" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10V7a4 4 0 1 1 8 0v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="15" r="1.3" fill="currentColor"/></svg></div>
-          <div class="eyebrow">Google account access</div>
-          <h2 id="loginTitle">Welcome back</h2>
-          <p class="muted">Continue with your approved Google account to open your private code review workspace.</p>
-          <div id="googleSignInButton" class="google-signin-container" aria-label="Sign in with Google"></div>
-          <div id="authMessage" class="error" role="alert"></div>
-          <div class="auth-divider">or use owner access</div>
-          <details class="backup-auth">
-            <summary>Use existing reviewer password</summary>
-            <form id="loginForm">
-              <label for="password">Owner access password</label>
-              <div class="field-wrap">
-                <input class="password-input" id="password" type="password" autocomplete="current-password" placeholder="Enter the reviewer access password" required>
-                <button class="reveal-btn" id="togglePassword" type="button" aria-label="Show password" title="Show password"><svg viewBox="0 0 24 24" fill="none"><path d="M2.5 12s3.3-6 9.5-6 9.5 6 9.5 6-3.3 6-9.5 6-9.5-6-9.5-6Z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.6"/></svg></button>
-              </div>
-              <button id="loginButton" class="primary-btn full-btn" type="submit">Enter workspace</button>
-              <div id="loginError" class="error" role="alert"></div>
-            </form>
-          </details>
-          <div class="auth-note"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5 4 5v4.8c0 3.5 2.4 6.2 6 7.7 3.6-1.5 6-4.2 6-7.7V5l-6-2.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m7 10 2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span>Google securely verifies your identity. ALTA never receives or stores your Gmail password. Access follows the reviewer account policy.</span></div>
-        </section>
-      </div>
-    </main>
-
-    <main id="appPanel" class="workspace hidden">
+    <main id="appPanel" class="workspace">
       <div class="workspace-head">
         <div>
           <div class="eyebrow">Developer workspace / overview</div>
           <h1>Code review workspace</h1>
           <p>Inspect a source file and turn potential issues into clear next steps.</p>
-          <p id="signedInEmail" class="account-email" style="margin-top:7px;color:#91b2e6;font-size:11px"></p>
+          
         </div>
-        <button id="logoutButton" class="logout-btn" type="button"><svg viewBox="0 0 20 20" fill="none"><path d="M8 4H4.5A1.5 1.5 0 0 0 3 5.5v9A1.5 1.5 0 0 0 4.5 16H8m4-3 3-3-3-3m3 3H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Sign out</button>
+        
       </div>
 
       <div class="workspace-grid">
@@ -368,7 +320,7 @@
             <p class="side-label">Workspace</p>
             <div class="nav-item active"><svg viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="3" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="3" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="11" y="11" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>New code review</div>
             <div class="side-divider"></div>
-            <div class="workspace-status"><span class="status-ring"><svg viewBox="0 0 20 20" fill="none"><path d="m4 10 4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><strong style="display:block;color:#dce7f5;font-size:11px">Session active</strong><span style="color:#71849f;font-size:10px">Private access enabled</span></span></div>
+            <div class="workspace-status"><span class="status-ring"><svg viewBox="0 0 20 20" fill="none"><path d="m4 10 4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><strong style="display:block;color:#dce7f5;font-size:11px">Public access</strong><span style="color:#71849f;font-size:10px">No account required</span></span></div>
           </section>
           <section class="side-card">
             <p class="side-label">Review workflow</p>
@@ -419,7 +371,7 @@
                 <div><label for="language">Language <span class="muted">(optional)</span></label><input id="language" maxlength="60" placeholder="Auto-detect from filename"></div>
               </div>
               <div class="form-footer">
-                <span class="limit-note"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5 4 5v4.8c0 3.5 2.4 6.2 6 7.7 3.6-1.5 6-4.2 6-7.7V5l-6-2.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m7 10 2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Private session · Code is not executed</span>
+                <span class="limit-note"><svg viewBox="0 0 20 20" fill="none"><path d="M10 2.5 4 5v4.8c0 3.5 2.4 6.2 6 7.7 3.6-1.5 6-4.2 6-7.7V5l-6-2.5Z" stroke="currentColor" stroke-width="1.5"/><path d="m7 10 2 2 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>Free public access · Code is not executed</span>
                 <button id="reviewButton" class="primary-btn" type="submit">Analyze code <svg viewBox="0 0 20 20" fill="none"><path d="M10 3v14M3 10h14m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
               </div>
               <div id="reviewError" class="error" role="alert"></div>
@@ -435,14 +387,9 @@
     <footer class="page-foot">ALTA AI CODE REVIEWER <span style="padding:0 7px;color:#3e5069">·</span> Build carefully. Review responsibly.</footer>
   </div>
 
-<script src="https://accounts.google.com/gsi/client" async defer id="googleIdentityServices"></script>
 <script>
-  const loginPanel = document.getElementById("loginPanel");
-  const appPanel = document.getElementById("appPanel");
-  const loginError = document.getElementById("loginError");
   const reviewError = document.getElementById("reviewError");
   const results = document.getElementById("results");
-  const loginButton = document.getElementById("loginButton");
   const reviewButton = document.getElementById("reviewButton");
   const codeInput = document.getElementById("code");
   const githubInput = document.getElementById("githubUrl");
@@ -459,74 +406,6 @@
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Request failed.");
     return data;
-  }
-
-  function waitForGoogleIdentityServices() {
-    if (window.google?.accounts?.id) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const script = document.getElementById("googleIdentityServices");
-      if (!script) return reject(new Error("Google sign-in could not be loaded. Check your connection or use owner access."));
-      script.addEventListener("load", () => {
-        if (window.google?.accounts?.id) resolve();
-        else reject(new Error("Google sign-in did not initialize. Please refresh the page."));
-      }, { once: true });
-      script.addEventListener("error", () => {
-        reject(new Error("Google sign-in could not be loaded. Check your connection or use owner access."));
-      }, { once: true });
-    });
-  }
-
-  async function initializeGoogleSignIn() {
-    const mount = document.getElementById("googleSignInButton");
-    if (!mount) return;
-    try {
-      const config = await api("/api/auth/google/bootstrap");
-      await waitForGoogleIdentityServices();
-      window.google.accounts.id.initialize({
-        client_id: config.clientId,
-        nonce: config.nonce,
-        ux_mode: "popup",
-        auto_select: false,
-        callback: async (credentialResponse) => {
-          const message = document.getElementById("authMessage");
-          message.textContent = "";
-          try {
-            if (!credentialResponse || typeof credentialResponse.credential !== "string") {
-              throw new Error("Google did not return a sign-in credential. Please try again.");
-            }
-            const signedIn = await api("/api/auth/google/credential", {
-              method: "POST",
-              body: JSON.stringify({ credential: credentialResponse.credential })
-            });
-            showApp(true, signedIn.email || "");
-          } catch (error) {
-            message.textContent = error.message || "Google sign-in failed. Please try again.";
-          }
-        }
-      });
-      mount.replaceChildren();
-      window.google.accounts.id.renderButton(mount, {
-        type: "standard",
-        theme: "filled_black",
-        size: "large",
-        shape: "rectangular",
-        text: "continue_with",
-        logo_alignment: "left",
-        width: 320
-      });
-    } catch (error) {
-      document.getElementById("authMessage").textContent = error.message || "Google sign-in is unavailable. Use owner access.";
-    }
-  }
-
-  function showApp(authed, email = "") {
-    loginPanel.classList.toggle("hidden", authed);
-    appPanel.classList.toggle("hidden", !authed);
-    if (authed) {
-      document.getElementById("signedInEmail").textContent = email ? "Signed in as " + email : "Signed in with owner access";
-    } else {
-      document.getElementById("password").value = "";
-    }
   }
 
   function setSource(source) {
@@ -618,43 +497,6 @@
     results.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  const authError = new URLSearchParams(window.location.search).get("authError");
-  if (authError) {
-    document.getElementById("authMessage").textContent = authError;
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-
-  document.getElementById("togglePassword").addEventListener("click", () => {
-    const password = document.getElementById("password");
-    const show = password.type === "password";
-    password.type = show ? "text" : "password";
-    document.getElementById("togglePassword").setAttribute("aria-label", show ? "Hide password" : "Show password");
-    document.getElementById("togglePassword").setAttribute("title", show ? "Hide password" : "Show password");
-  });
-
-  document.getElementById("loginForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    loginError.textContent = "";
-    loginButton.disabled = true;
-    loginButton.textContent = "Signing in...";
-    try {
-      await api("/api/login", { method: "POST", body: JSON.stringify({ password: document.getElementById("password").value }) });
-      document.getElementById("password").value = "";
-      showApp(true, "owner");
-    } catch (error) {
-      loginError.textContent = error.message;
-    } finally {
-      loginButton.disabled = false;
-      loginButton.innerHTML = 'Enter workspace <svg viewBox="0 0 20 20" fill="none"><path d="M4 10h11m-4-4 4 4-4 4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    }
-  });
-
-  document.getElementById("logoutButton").addEventListener("click", async () => {
-    try { await api("/api/logout", { method: "POST", body: "{}" }); } catch {}
-    results.classList.add("hidden");
-    showApp(false);
-  });
-
   document.getElementById("pasteTab").addEventListener("click", () => setSource("code"));
   document.getElementById("githubTab").addEventListener("click", () => setSource("github"));
   codeInput.addEventListener("input", () => {
@@ -685,7 +527,6 @@
       const data = await api("/api/analyze", { method: "POST", body: JSON.stringify(payload) });
       renderReport(data);
     } catch (error) {
-      if (error.message.toLowerCase().includes("sign in")) showApp(false);
       reviewError.textContent = error.message;
     } finally {
       reviewButton.disabled = false;
@@ -693,8 +534,6 @@
     }
   });
 
-  api("/api/session").then(data => showApp(Boolean(data.authenticated), data.email || "")).catch(() => showApp(false));
-  initializeGoogleSignIn();
 </script>
 </body>
 </html>
