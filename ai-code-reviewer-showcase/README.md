@@ -3,7 +3,7 @@
 A milestone from my AI development challenge: I designed, built, and deployed a separate AI-assisted code-review MVP.
 
 **Live application:** https://alta-ai-code-reviewer.onrender.com  
-**Source code:** [\`ai-code-reviewer/\`](../tree/feature/standalone-ai-code-reviewer/ai-code-reviewer)
+**Source code:** [ai-code-reviewer folder](https://github.com/simarwin0/Alta-builders-30/tree/feature/standalone-ai-code-reviewer/ai-code-reviewer)
 
 ## What I built
 
@@ -30,13 +30,23 @@ This is a working MVP milestone, not yet a full enterprise code-review platform.
 
 Current input support is pasted code or **one public GitHub file** at a time, with a default maximum of 30,000 characters. The service does not currently support private repositories, whole-repository scans, pull-request reviews, review-history storage, multi-user accounts, static-analysis engines, or automated test execution. AI findings are suggestions and must be checked by a developer.
 
-## Security and configuration
-
-The service requires `OPENAI_API_KEY` and `REVIEWER_ACCESS_PASSWORD` in the Render service's private environment settings. Secret values are intentionally not stored in this repository or in screenshots. The access password is not included in this README.
+The deployment and browser workflow are confirmed. A successful end-to-end response from the live OpenAI review endpoint still needs to be validated with a real test submission.
 
 ## Screenshots
 
-The accompanying evidence images show the private sign-in screen and the authenticated code-review workspace. They are provided separately with the project showcase; no credentials or API keys are included.
+### 1. Private reviewer sign-in
+
+![Private reviewer sign-in screen](./login-screen.webp)
+
+### 2. Authenticated code-review workspace
+
+![Authenticated code-review workspace](./reviewer-dashboard.webp)
+
+These screenshots show the login screen and the dashboard after sign-in. They do not show a completed AI-generated review report. No credentials or API keys are included.
+
+## Security and configuration
+
+The service uses `OPENAI_API_KEY` and `REVIEWER_ACCESS_PASSWORD` in the Render service's private environment settings. Secret values are intentionally not stored in this repository or in screenshots. The access password is not included in this README.
 
 ## What I learned
 
