@@ -1,14 +1,7 @@
 import express from "express";
 import helmet from "helmet";
 import OpenAI from "openai";
-import { OAuth2Client } from "google-auth-library";
 import { rateLimit } from "express-rate-limit";
-import {
-  createHash,
-  createHmac,
-  randomBytes,
-  timingSafeEqual
-} from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,19 +12,7 @@ const MAX_REVIEW_CODE_CHARS = Math.min(
   60000,
   Math.max(1000, Number.parseInt(process.env.MAX_REVIEW_CODE_CHARS || "30000", 10) || 30000)
 );
-const SESSION_TTL_SECONDS = 12 * 60 * 60;
-const ACCESS_PASSWORD = process.env.REVIEWER_ACCESS_PASSWORD || "";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
-const SESSION_KEY = ACCESS_PASSWORD.length >= 32
-  ? createHash("sha256").update("alta-standalone-ai-reviewer-session-v1:").update(ACCESS_PASSWORD).digest()
-  : null;
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
-const GOOGLE_ALLOWED_EMAILS = new Set(
-  (process.env.GOOGLE_ALLOWED_EMAILS || "")
-    .split(",")
-    .map(email => email.trim().toLowerCase())
-    .filter(Boolean)
-);
 
 if (NODE_ENV === "production") app.set("trust proxy", 1);
 app.disable("x-powered-by");
@@ -44,14 +25,6 @@ app.use(express.json({ limit: "100kb" }));
 const here = path.dirname(fileURLToPath(import.meta.url));
 app.use(express.static(path.join(here, "public"), { index: false, maxAge: NODE_ENV === "production" ? "1h" : 0 }));
 
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 8,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many login attempts. Try again in 15 minutes." }
-});
-
 const reviewLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 5,
@@ -60,6 +33,29 @@ const reviewLimiter = rateLimit({
   message: { error: "Review limit reached. Try again in a minute." }
 });
 
+const publicDailyReviewLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  limit: 25,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Daily free limit reached for this network. Please try again tomorrow." }
+});
+
+const maxDailyReviewsSetting = Number.parseInt(process.env.MAX_DAILY_REVIEWS || "250", 10);
+const MAX_DAILY_REVIEWS = Number.isFinite(maxDailyReviewsSetting)
+  ? Math.max(25, Math.min(5000, maxDailyReviewsSetting))
+  : 250;
+
+const globalDailyReviewLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000,
+  limit: MAX_DAILY_REVIEWS,
+  keyGenerator: () => "public-review-global",
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "The shared free review allowance has been reached for today. Please try again tomorrow." }
+});
+
+
 function sameOrigin(req, res, next) {
   const origin = req.get("origin");
   const expected = `${req.protocol}://${req.get("host")}`;
@@ -67,88 +63,6 @@ function sameOrigin(req, res, next) {
     return res.status(403).json({ error: "Request origin is not allowed." });
   }
   next();
-}
-
-function readCookie(req, name) {
-  const header = req.headers.cookie || "";
-  for (const item of header.split(";")) {
-    const splitAt = item.indexOf("=");
-    if (splitAt < 0) continue;
-    if (item.slice(0, splitAt).trim() === name) {
-      return item.slice(splitAt + 1).trim();
-    }
-  }
-  return null;
-}
-
-function signSession(expiry, nonce, identity) {
-  return createHmac("sha256", SESSION_KEY)
-    .update(`${expiry}.${nonce}.${identity}`)
-    .digest("base64url");
-}
-
-function createSessionToken(identity = "owner") {
-  const expiry = Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS;
-  const nonce = randomBytes(24).toString("base64url");
-  const encodedIdentity = Buffer.from(identity, "utf8").toString("base64url");
-  const signature = signSession(expiry, nonce, identity);
-  return `${expiry}.${nonce}.${encodedIdentity}.${signature}`;
-}
-
-function getSessionIdentity(req) {
-  if (!SESSION_KEY) return null;
-  const token = readCookie(req, "reviewer_session");
-  if (!token) return null;
-  const [expiryText, nonce, encodedIdentity, signature, extra] = token.split(".");
-  if (!expiryText || !nonce || !encodedIdentity || !signature || extra !== undefined) return null;
-  const expiry = Number(expiryText);
-  if (!Number.isSafeInteger(expiry) || expiry <= Math.floor(Date.now() / 1000)) return null;
-
-  let identity;
-  try {
-    identity = Buffer.from(encodedIdentity, "base64url").toString("utf8");
-  } catch {
-    return null;
-  }
-  if (!identity || identity.length > 320) return null;
-
-  const expected = signSession(expiryText, nonce, identity);
-  const receivedDigest = createHash("sha256").update(signature).digest();
-  const expectedDigest = createHash("sha256").update(expected).digest();
-  return timingSafeEqual(receivedDigest, expectedDigest) ? identity : null;
-}
-
-function isValidSession(req) {
-  return getSessionIdentity(req) !== null;
-}
-
-function setSessionCookie(res, identity = "owner") {
-  res.cookie("reviewer_session", createSessionToken(identity), {
-    httpOnly: true,
-    secure: NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_TTL_SECONDS * 1000
-  });
-}
-
-function safeStringEqual(left, right) {
-  if (typeof left !== "string" || typeof right !== "string") return false;
-  const leftBuffer = Buffer.from(left);
-  const rightBuffer = Buffer.from(right);
-  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
-}
-
-
-function requireSession(req, res, next) {
-  if (!isValidSession(req)) return res.status(401).json({ error: "Please sign in to use the reviewer." });
-  next();
-}
-
-function constantTimePasswordMatch(candidate, expected) {
-  const candidateDigest = createHash("sha256").update(candidate).digest();
-  const expectedDigest = createHash("sha256").update(expected).digest();
-  return timingSafeEqual(candidateDigest, expectedDigest);
 }
 
 const FindingSchema = {
@@ -352,111 +266,15 @@ app.get("/health", (_req, res) => {
   res.json({
     status: "ok",
     service: "standalone-ai-code-reviewer",
-    accessConfigured: Boolean(SESSION_KEY),
+    accessMode: "public",
     openaiConfigured: Boolean(process.env.OPENAI_API_KEY),
-    googleAuthConfigured: Boolean(GOOGLE_CLIENT_ID),
-    googleAccessConfigured: GOOGLE_ALLOWED_EMAILS.size > 0
+    maxCodeChars: MAX_REVIEW_CODE_CHARS,
+    perIpDailyLimit: 25,
+    globalDailyLimit: MAX_DAILY_REVIEWS
   });
 });
 
-app.get("/api/auth/google/bootstrap", loginLimiter, (req, res) => {
-  if (!GOOGLE_CLIENT_ID || !SESSION_KEY || !GOOGLE_ALLOWED_EMAILS.size) {
-    return res.status(503).json({ error: "Google sign-in is not fully configured. Use owner access or contact the app owner." });
-  }
-
-  const nonce = randomBytes(32).toString("base64url");
-  res.cookie("reviewer_gsi_nonce", nonce, {
-    httpOnly: true,
-    secure: NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/api/auth/google/credential",
-    maxAge: 5 * 60 * 1000
-  });
-  res.set("Cache-Control", "no-store");
-  return res.json({ clientId: GOOGLE_CLIENT_ID, nonce });
-});
-
-app.post("/api/auth/google/credential", sameOrigin, loginLimiter, async (req, res) => {
-  const nonce = readCookie(req, "reviewer_gsi_nonce");
-  const credential = typeof req.body?.credential === "string" ? req.body.credential : "";
-
-  if (!nonce) {
-    return res.status(401).json({ error: "Your Google sign-in session expired. Refresh the page and try again." });
-  }
-  if (!credential || credential.length > 12000) {
-    return res.status(400).json({ error: "Google did not return a valid sign-in credential." });
-  }
-  if (!GOOGLE_CLIENT_ID || !SESSION_KEY || !GOOGLE_ALLOWED_EMAILS.size) {
-    return res.status(503).json({ error: "Google sign-in is not fully configured." });
-  }
-
-  try {
-    const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
-    const ticket = await googleClient.verifyIdToken({
-      idToken: credential,
-      audience: GOOGLE_CLIENT_ID
-    });
-    const payload = ticket.getPayload();
-    const email = typeof payload?.email === "string" ? payload.email.trim().toLowerCase() : "";
-
-    if (!payload || !payload.sub || payload.nonce !== nonce ||
-        payload.email_verified !== true || !email) {
-      return res.status(401).json({ error: "Google could not verify this account. Refresh the page and try again." });
-    }
-
-    const allowAllGoogleAccounts = GOOGLE_ALLOWED_EMAILS.has("*");
-    if (!allowAllGoogleAccounts && !GOOGLE_ALLOWED_EMAILS.has(email)) {
-      return res.status(403).json({ error: "This Google account is not approved for this reviewer." });
-    }
-
-    res.clearCookie("reviewer_gsi_nonce", {
-      httpOnly: true,
-      secure: NODE_ENV === "production",
-      sameSite: "strict",
-      path: "/api/auth/google/credential"
-    });
-    setSessionCookie(res, email);
-    return res.json({ authenticated: true, email });
-  } catch (error) {
-    const code = error && typeof error === "object" && error.code
-      ? String(error.code).slice(0, 80)
-      : "token_verification_failed";
-    console.warn("Google Identity Services token verification failed:", code);
-    return res.status(401).json({ error: "Google sign-in could not be verified. Refresh the page and try again." });
-  }
-});
-
-app.get("/api/session", (req, res) => {
-  const identity = getSessionIdentity(req);
-  res.json({
-    authenticated: Boolean(identity),
-    email: identity && identity !== "owner" ? identity : null
-  });
-});
-
-app.post("/api/login", sameOrigin, loginLimiter, (req, res) => {
-  if (!SESSION_KEY || ACCESS_PASSWORD.length < 32) {
-    return res.status(503).json({ error: "Set REVIEWER_ACCESS_PASSWORD (at least 32 characters) in Render first." });
-  }
-  const password = typeof req.body?.password === "string" ? req.body.password : "";
-  if (!constantTimePasswordMatch(password, ACCESS_PASSWORD)) {
-    return res.status(401).json({ error: "Incorrect access password." });
-  }
-  setSessionCookie(res);
-  return res.json({ success: true });
-});
-
-app.post("/api/logout", sameOrigin, (_req, res) => {
-  res.clearCookie("reviewer_session", {
-    httpOnly: true,
-    secure: NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/"
-  });
-  res.json({ success: true });
-});
-
-app.post("/api/analyze", sameOrigin, requireSession, reviewLimiter, async (req, res) => {
+app.post("/api/analyze", sameOrigin, publicDailyReviewLimiter, reviewLimiter, globalDailyReviewLimiter, async (req, res) => {
   try {
     const source = await resolveSource(req.body || {});
     const result = await analyzeCode(source);
