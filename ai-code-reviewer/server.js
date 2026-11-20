@@ -12,7 +12,7 @@ const MAX_REVIEW_CODE_CHARS = Math.min(
   60000,
   Math.max(1000, Number.parseInt(process.env.MAX_REVIEW_CODE_CHARS || "30000", 10) || 30000)
 );
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+const GEMINI_MODEL = "gemini-3.8-flash";
 
 if (NODE_ENV === "production") app.set("trust proxy", 1);
 app.disable("x-powered-by");
@@ -319,7 +319,7 @@ app.post("/api/analyze", sameOrigin, publicDailyReviewLimiter, reviewLimiter, gl
       status: apiErrorStatus,
       message: apiErrorMessage.slice(0, 500)
     });
-    return res.status(502).json({ error: "The AI review could not be completed. Check the service logs." });
+    return res.status(502).json({ error: `Gemini review failed (${apiErrorStatus || "unknown"}): ${apiErrorMessage.slice(0, 240)}` });
   }
 });
 
@@ -330,5 +330,5 @@ app.use((err, _req, res, _next) => {
 });
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Standalone AI Code Reviewer listening on port ${PORT} (${NODE_ENV})`);
+  console.log(`Standalone AI Code Reviewer listening on port ${PORT} (${NODE_ENV}); Gemini model: ${GEMINI_MODEL}`);
 });
