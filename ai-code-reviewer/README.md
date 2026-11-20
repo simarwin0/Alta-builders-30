@@ -37,7 +37,7 @@ A public, no-login code review app deployed as a standalone Render service. Anyo
 | `MAX_REVIEW_CODE_CHARS` | `30000` (optional; default maximum source size) |
 | `MAX_DAILY_REVIEWS` | `250` (optional; shared daily allowance, minimum 25, maximum 5000) |
 
-Keep the OpenAI API key only in the Render environment settings. Do not put it in browser code or GitHub. This app does not need MongoDB, a JWT secret, reviewer password, Google OAuth credentials, or login-related environment variables.
+Keep the Gemini API key only in the Render environment settings. Do not put it in browser code or GitHub. This app does not need MongoDB, a JWT secret, reviewer password, Google OAuth credentials, or login-related environment variables.
 
 ## Public access and usage limits
 
@@ -47,7 +47,7 @@ Visitors do not pay and do not need to register. The owner of this app pays for 
 - Each IP address can submit up to 25 reviews per rolling 24-hour window.
 - The whole service shares a rolling 24-hour allowance, defaulting to 250 reviews. Set `MAX_DAILY_REVIEWS` in Render to change it.
 
-These rate limits use in-memory counters on the Render instance. They reset if the service restarts or redeploys, so they are basic abuse and cost controls, not a billing guarantee. Set an Google AI Studio usage limits as an additional safeguard.
+These rate limits use in-memory counters on the Render instance. They reset if the service restarts or redeploys, so they are basic abuse and cost controls, not a billing guarantee. Use Google AI Studio usage limits as an additional safeguard.
 
 ## Routes
 
@@ -60,7 +60,7 @@ These rate limits use in-memory counters on the Render instance. They reset if t
 ```bash
 cd ai-code-reviewer
 npm install
-OPENAI_API_KEY=your_key npm start
+GEMINI_API_KEY=your_key npm start
 ```
 
 Then open http://localhost:10000.
