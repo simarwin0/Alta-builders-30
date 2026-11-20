@@ -289,8 +289,11 @@ app.post("/api/analyze", sameOrigin, publicDailyReviewLimiter, reviewLimiter, gl
     }
 
     const apiErrorCode = error && typeof error === "object" ? error.code : undefined;
-    const apiErrorStatus = error && typeof error === "object" ? error.status : undefined;
-    if (apiErrorCode === "invalid_api_key" || apiErrorStatus === 401 || apiErrorStatus === 403) {
+    const apiErrorStatus = error && typeof error === "object" ? (error.status ?? error.statusCode) : undefined;
+    const apiErrorMessage = error instanceof Error ? error.message : String(error);
+    const normalizedApiMessage = apiErrorMessage.toLowerCase();
+    if (apiErrorCode === "invalid_api_key" || apiErrorStatus === 401 || apiErrorStatus === 403 ||
+        /api key not valid|invalid api key|permission denied|api key is invalid/.test(normalizedApiMessage)) {
       console.error("Gemini rejected the configured API key:", {
         code: apiErrorCode || "unauthorized",
         status: apiErrorStatus || 401
@@ -299,7 +302,8 @@ app.post("/api/analyze", sameOrigin, publicDailyReviewLimiter, reviewLimiter, gl
         error: "The AI reviewer is not ready because Gemini rejected its API key. The app owner must replace GEMINI_API_KEY in Render with a valid, active key."
       });
     }
-    if (apiErrorCode === "insufficient_quota" || apiErrorCode === "RESOURCE_EXHAUSTED" || apiErrorStatus === 429) {
+    if (apiErrorCode === "insufficient_quota" || apiErrorCode === "RESOURCE_EXHAUSTED" || apiErrorStatus === 429 ||
+        /quota|resource_exhausted|rate.?limit|too many requests/.test(normalizedApiMessage)) {
       console.error("Gemini API quota or rate limit error:", {
         code: apiErrorCode || "rate_limit",
         status: apiErrorStatus || 429
@@ -311,7 +315,9 @@ app.post("/api/analyze", sameOrigin, publicDailyReviewLimiter, reviewLimiter, gl
 
     console.error("AI review failed:", {
       name: error instanceof Error ? error.name : "UnknownError",
-      code: error && typeof error === "object" ? error.code : undefined
+      code: apiErrorCode,
+      status: apiErrorStatus,
+      message: apiErrorMessage.slice(0, 500)
     });
     return res.status(502).json({ error: "The AI review could not be completed. Check the service logs." });
   }
