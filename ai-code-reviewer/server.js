@@ -71,24 +71,24 @@ const FindingSchema = {
   required: ["category", "severity", "title", "description", "line", "suggestedFix", "confidence"],
   properties: {
     category: { type: Type.STRING, enum: ["bug", "style", "security"] },
-    severity: { type: "string", enum: ["Low", "Medium", "High"] },
+    severity: { type: Type.STRING, enum: ["Low", "Medium", "High"] },
     title: { type: Type.STRING },
-    description: { type: "string" },
-    line: { type: ["integer", "null"] },
-    suggestedFix: { type: "string" },
+    description: { type: Type.STRING },
+    line: { type: Type.INTEGER, nullable: true },
+    suggestedFix: { type: Type.STRING },
     confidence: { type: Type.NUMBER }
   }
 };
 
 const ReportSchema = {
-  type: "object",
+  type: Type.OBJECT,
   additionalProperties: false,
   required: ["summary", "overallRisk", "findings", "positives"],
   properties: {
-    summary: { type: "string" },
-    overallRisk: { type: "string", enum: ["Low", "Medium", "High"] },
+    summary: { type: Type.STRING },
+    overallRisk: { type: Type.STRING, enum: ["Low", "Medium", "High"] },
     findings: { type: Type.ARRAY, items: FindingSchema },
-    positives: { type: "array", items: { type: Type.STRING } }
+    positives: { type: Type.ARRAY, items: { type: Type.STRING } }
   }
 };
 
@@ -290,7 +290,7 @@ app.post("/api/analyze", sameOrigin, publicDailyReviewLimiter, reviewLimiter, gl
 
     const apiErrorCode = error && typeof error === "object" ? error.code : undefined;
     const apiErrorStatus = error && typeof error === "object" ? error.status : undefined;
-    if (apiErrorCode === "invalid_api_key" || apiErrorStatus === 401) {
+    if (apiErrorCode === "invalid_api_key" || apiErrorStatus === 401 || apiErrorStatus === 403) {
       console.error("Gemini rejected the configured API key:", {
         code: apiErrorCode || "unauthorized",
         status: apiErrorStatus || 401
@@ -299,7 +299,7 @@ app.post("/api/analyze", sameOrigin, publicDailyReviewLimiter, reviewLimiter, gl
         error: "The AI reviewer is not ready because Gemini rejected its API key. The app owner must replace GEMINI_API_KEY in Render with a valid, active key."
       });
     }
-    if (apiErrorCode === "insufficient_quota" || apiErrorStatus === 429) {
+    if (apiErrorCode === "insufficient_quota" || apiErrorCode === "RESOURCE_EXHAUSTED" || apiErrorStatus === 429) {
       console.error("Gemini API quota or rate limit error:", {
         code: apiErrorCode || "rate_limit",
         status: apiErrorStatus || 429
