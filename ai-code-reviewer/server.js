@@ -12,7 +12,7 @@ const MAX_REVIEW_CODE_CHARS = Math.min(
   60000,
   Math.max(1000, Number.parseInt(process.env.MAX_REVIEW_CODE_CHARS || "30000", 10) || 30000)
 );
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 
 if (NODE_ENV === "production") app.set("trust proxy", 1);
 app.disable("x-powered-by");
