@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
 import { cacheRoomKey, clearRoomKeyCache, createInvitationToken, createRoomKey, decryptRoomMetadata, decryptRoomText, encryptInvitationLabel, encryptRoomMetadataWithKey, encryptRoomText, unwrapRoomKey, wrapRoomKeyForUser } from "../crypto";
 import type { Message, RoomDetails } from "../types";
+import { getSocket } from "../socket";
 
 function getRoomDisplayName(details: RoomDetails, encryptedName: string): string {
   if (details.type === "direct") {
@@ -65,6 +66,29 @@ const MessageBubble = memo(function MessageBubble({ message, isMine }: { message
 
 type PublicKeyResponse = { public_key: JsonWebKey };
 type UserLite = { id: string; username: string; status: "online" | "away" | "offline" };
+type CallStatus = "idle" | "incoming" | "calling" | "connecting" | "connected";
+type CallSignalPayload = {
+  roomId: string;
+  fromUserId: string;
+  callId: string;
+  kind: "offer" | "answer" | "ice" | "hangup" | "reject";
+  data?: Record<string, unknown>;
+};
+type IncomingCall = { callId: string; fromUserId: string; sdp: RTCSessionDescriptionInit };
+
+function getCallIceServers(): RTCIceServer[] {
+  const servers: RTCIceServer[] = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ];
+  // TURN credentials are client-visible by design. Use short-lived credentials
+  // from your TURN provider; never put the provider's shared API secret here.
+  const turnUrls = (import.meta.env.VITE_TURN_URL ?? "").split(",").map((value) => value.trim()).filter(Boolean);
+  const username = import.meta.env.VITE_TURN_USERNAME;
+  const credential = import.meta.env.VITE_TURN_CREDENTIAL;
+  if (turnUrls.length && username && credential) servers.push({ urls: turnUrls, username, credential });
+  return servers;
+}
 
 export default function ChatRoomPage() {
   const { roomId = "" } = useParams();
@@ -87,6 +111,22 @@ export default function ChatRoomPage() {
   const [inviteId, setInviteId] = useState("");
   const [pendingRequests, setPendingRequests] = useState<Array<{ user_id: string; username: string; status: string }>>([]);
   const [inviteBusy, setInviteBusy] = useState(false);
+  const [callStatus, setCallStatus] = useState<CallStatus>("idle");
+  const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [micMuted, setMicMuted] = useState(false);
+  const [cameraOff, setCameraOff] = useState(false);
+  const socketRef = useRef<ReturnType<typeof getSocket> | null>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
+  const callStatusRef = useRef<CallStatus>("idle");
+  const activeCallIdRef = useRef<string | null>(null);
+  const peerUserIdRef = useRef<string | null>(null);
+  const pendingIceRef = useRef<RTCIceCandidateInit[]>([]);
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<Message[]>([]);
 
@@ -438,6 +478,280 @@ export default function ChatRoomPage() {
   useEffect(() => { if (infoOpen && canManageMembers) void loadJoinRequests(); }, [infoOpen, canManageMembers, roomId]);
 
 
+  const directPeer = room?.type === "direct"
+    ? room.members.find((member) => member.user_id !== room.my_user_id)
+    : undefined;
+  const peerUserId = directPeer?.user_id ?? null;
+  const peerName = directPeer?.username ?? room?.direct_peer_name ?? "Contact";
+
+  function updateCallStatus(status: CallStatus) {
+    callStatusRef.current = status;
+    setCallStatus(status);
+  }
+
+  function waitForSocket(socket: ReturnType<typeof getSocket>): Promise<void> {
+    if (socket.connected) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const cleanup = () => {
+        window.clearTimeout(timeout);
+        socket.off("connect", onConnect);
+        socket.off("connect_error", onError);
+      };
+      const timeout = window.setTimeout(() => {
+        cleanup();
+        reject(new Error("The secure calling connection did not respond. Please try again."));
+      }, 12_000);
+      const onConnect = () => { cleanup(); resolve(); };
+      const onError = () => {
+        cleanup();
+        reject(new Error("Could not connect to the secure calling service. Refresh the chat and try again."));
+      };
+      socket.once("connect", onConnect);
+      socket.once("connect_error", onError);
+      socket.connect();
+    });
+  }
+
+  function sendCallSignal(
+    kind: CallSignalPayload["kind"],
+    callId: string,
+    targetUserId: string,
+    data?: Record<string, unknown>,
+  ) {
+    const socket = socketRef.current;
+    if (!socket?.connected) return false;
+    socket.emit("call:signal", { roomId, targetUserId, callId, kind, data });
+    return true;
+  }
+
+  function cleanupCall(signalKind?: "hangup" | "reject") {
+    const callId = activeCallIdRef.current;
+    const targetUserId = peerUserIdRef.current;
+    if (signalKind && callId && targetUserId) sendCallSignal(signalKind, callId, targetUserId);
+
+    const connection = peerConnectionRef.current;
+    if (connection) {
+      connection.onicecandidate = null;
+      connection.ontrack = null;
+      connection.onconnectionstatechange = null;
+      connection.close();
+    }
+    peerConnectionRef.current = null;
+    localStreamRef.current?.getTracks().forEach((track) => track.stop());
+    remoteStreamRef.current?.getTracks().forEach((track) => track.stop());
+    localStreamRef.current = null;
+    remoteStreamRef.current = null;
+    activeCallIdRef.current = null;
+    peerUserIdRef.current = null;
+    pendingIceRef.current = [];
+    setLocalStream(null);
+    setRemoteStream(null);
+    setIncomingCall(null);
+    setMicMuted(false);
+    setCameraOff(false);
+    updateCallStatus("idle");
+  }
+
+  async function requestLocalMedia(): Promise<MediaStream> {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Video calling needs a secure browser connection and camera/microphone support.");
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+    });
+    localStreamRef.current = stream;
+    setLocalStream(stream);
+    setMicMuted(false);
+    setCameraOff(false);
+    return stream;
+  }
+
+  function createPeerConnection(callId: string, targetUserId: string) {
+    const connection = new RTCPeerConnection({ iceServers: getCallIceServers() });
+    peerConnectionRef.current = connection;
+    connection.onicecandidate = (event) => {
+      if (event.candidate) sendCallSignal("ice", callId, targetUserId, { candidate: event.candidate.toJSON() });
+    };
+    connection.ontrack = (event) => {
+      const stream = event.streams[0] ?? new MediaStream([event.track]);
+      remoteStreamRef.current = stream;
+      setRemoteStream(stream);
+    };
+    connection.onconnectionstatechange = () => {
+      if (connection.connectionState === "connected") {
+        updateCallStatus("connected");
+      } else if (connection.connectionState === "failed") {
+        setError("The video connection could not be established. This network may require a TURN relay.");
+        cleanupCall("hangup");
+      }
+    };
+    return connection;
+  }
+
+  async function flushPendingIce(connection: RTCPeerConnection) {
+    if (!connection.remoteDescription) return;
+    const pending = pendingIceRef.current.splice(0);
+    for (const candidate of pending) await connection.addIceCandidate(new RTCIceCandidate(candidate));
+  }
+
+  function handleCallSignal(payload: CallSignalPayload) {
+    if (payload.roomId !== roomId || !peerUserId || payload.fromUserId !== peerUserId) return;
+    if (payload.kind === "offer") {
+      const sdp = payload.data?.sdp as RTCSessionDescriptionInit | undefined;
+      if (!sdp || typeof sdp !== "object") return;
+      if (callStatusRef.current !== "idle") {
+        socketRef.current?.emit("call:signal", {
+          roomId, targetUserId: payload.fromUserId, callId: payload.callId,
+          kind: "reject", data: { reason: "busy" },
+        });
+        return;
+      }
+      activeCallIdRef.current = payload.callId;
+      peerUserIdRef.current = payload.fromUserId;
+      pendingIceRef.current = [];
+      setIncomingCall({ callId: payload.callId, fromUserId: payload.fromUserId, sdp });
+      updateCallStatus("incoming");
+      return;
+    }
+
+    if (payload.callId !== activeCallIdRef.current) return;
+    if (payload.kind === "answer") {
+      const sdp = payload.data?.sdp as RTCSessionDescriptionInit | undefined;
+      const connection = peerConnectionRef.current;
+      if (!sdp || !connection) return;
+      void (async () => {
+        try {
+          await connection.setRemoteDescription(new RTCSessionDescription(sdp));
+          await flushPendingIce(connection);
+          updateCallStatus("connecting");
+        } catch {
+          setError("The video call answer could not be applied. Please try again.");
+          cleanupCall();
+        }
+      })();
+    } else if (payload.kind === "ice") {
+      const candidate = payload.data?.candidate as RTCIceCandidateInit | undefined;
+      if (!candidate || typeof candidate !== "object") return;
+      const connection = peerConnectionRef.current;
+      if (connection?.remoteDescription) {
+        void connection.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => undefined);
+      } else {
+        pendingIceRef.current.push(candidate);
+      }
+    } else if (payload.kind === "reject") {
+      setError("The other person declined the video call.");
+      cleanupCall();
+    } else if (payload.kind === "hangup") {
+      cleanupCall();
+    }
+  }
+
+  async function startVideoCall() {
+    if (!peerUserId || callStatusRef.current !== "idle") return;
+    setError("");
+    peerUserIdRef.current = peerUserId;
+    try {
+      const socket = getSocket();
+      socketRef.current = socket;
+      await waitForSocket(socket);
+      const callId = crypto.randomUUID();
+      activeCallIdRef.current = callId;
+      pendingIceRef.current = [];
+      updateCallStatus("calling");
+      const stream = await requestLocalMedia();
+      const connection = createPeerConnection(callId, peerUserId);
+      stream.getTracks().forEach((track) => connection.addTrack(track, stream));
+      const offer = await connection.createOffer();
+      await connection.setLocalDescription(offer);
+      if (!sendCallSignal("offer", callId, peerUserId, { sdp: connection.localDescription?.toJSON() })) {
+        throw new Error("The calling connection was interrupted before the call could start.");
+      }
+    } catch (err) {
+      setError((err as Error).message || "Could not start the video call. Check your camera and microphone permissions.");
+      cleanupCall();
+    }
+  }
+
+  async function acceptIncomingCall() {
+    const pending = incomingCall;
+    const targetUserId = pending?.fromUserId;
+    if (!pending || !targetUserId || callStatusRef.current !== "incoming") return;
+    try {
+      const socket = socketRef.current ?? getSocket();
+      socketRef.current = socket;
+      await waitForSocket(socket);
+      const stream = await requestLocalMedia();
+      const connection = createPeerConnection(pending.callId, targetUserId);
+      await connection.setRemoteDescription(new RTCSessionDescription(pending.sdp));
+      await flushPendingIce(connection);
+      stream.getTracks().forEach((track) => connection.addTrack(track, stream));
+      const answer = await connection.createAnswer();
+      await connection.setLocalDescription(answer);
+      setIncomingCall(null);
+      updateCallStatus("connecting");
+      if (!sendCallSignal("answer", pending.callId, targetUserId, { sdp: connection.localDescription?.toJSON() })) {
+        throw new Error("The calling connection was interrupted before the call could be answered.");
+      }
+    } catch (err) {
+      setError((err as Error).message || "Could not answer the video call.");
+      cleanupCall("reject");
+    }
+  }
+
+  function toggleMicrophone() {
+    const nextMuted = !micMuted;
+    localStreamRef.current?.getAudioTracks().forEach((track) => { track.enabled = !nextMuted; });
+    setMicMuted(nextMuted);
+  }
+
+  function toggleCamera() {
+    const nextOff = !cameraOff;
+    localStreamRef.current?.getVideoTracks().forEach((track) => { track.enabled = !nextOff; });
+    setCameraOff(nextOff);
+  }
+
+  useEffect(() => {
+    if (localVideoRef.current) localVideoRef.current.srcObject = localStream;
+  }, [localStream, callStatus]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
+  }, [remoteStream, callStatus]);
+
+  useEffect(() => {
+    if (room?.type !== "direct" || !peerUserId) return;
+    let socket: ReturnType<typeof getSocket>;
+    try {
+      socket = getSocket();
+      socketRef.current = socket;
+      socket.on("call:signal", handleCallSignal);
+      socket.connect();
+    } catch (err) {
+      setError((err as Error).message || "The realtime calling service is unavailable.");
+      return;
+    }
+    return () => {
+      socket.off("call:signal", handleCallSignal);
+      const callId = activeCallIdRef.current;
+      const targetUserId = peerUserIdRef.current;
+      if (callId && targetUserId && socket.connected) {
+        socket.emit("call:signal", { roomId, targetUserId, callId, kind: "hangup" });
+      }
+      peerConnectionRef.current?.close();
+      localStreamRef.current?.getTracks().forEach((track) => track.stop());
+      remoteStreamRef.current?.getTracks().forEach((track) => track.stop());
+      peerConnectionRef.current = null;
+      localStreamRef.current = null;
+      remoteStreamRef.current = null;
+      activeCallIdRef.current = null;
+      peerUserIdRef.current = null;
+      pendingIceRef.current = [];
+      if (socketRef.current === socket) socketRef.current = null;
+    };
+  }, [roomId, room?.type, peerUserId]);
+
+  
   return (
     <main className="screen chat">
       <header className="bar chat-room-bar">
@@ -446,6 +760,11 @@ export default function ChatRoomPage() {
           <strong>{roomName}</strong>
           <small className="muted"> · end-to-end encrypted</small>
         </div>
+        {room?.type === "direct" && peerUserId && (
+          <button type="button" className="video-call-button" onClick={() => void startVideoCall()} disabled={callStatus !== "idle"} aria-label={`Start video call with ${peerName}`}>
+            <span aria-hidden="true">▣</span><span className="video-call-label">Video call</span>
+          </button>
+        )}
         {room?.type === "group" && <button type="button" className="group-info-trigger" onClick={() => setInfoOpen(true)}>Group info</button>}
       </header>
       {error && <p className="error" role="alert">{error}</p>}
@@ -461,9 +780,48 @@ export default function ChatRoomPage() {
         <div ref={bottom} />
       </section>
       <form className="composer" onSubmit={send}>
-        <input value={text} placeholder="Encrypted message" maxLength={8000} onChange={(e) => setText(e.target.value)} />
-        <button type="submit">Send</button>
+        <input value={text} placeholder="Type a message" aria-label="Write an encrypted message" maxLength={8000} onChange={(e) => setText(e.target.value)} />
+        <button type="submit" disabled={!text.trim()}>Send</button>
       </form>
+
+      {callStatus !== "idle" && (
+        <div className="video-call-overlay" role="dialog" aria-modal="true" aria-label="Video call">
+          <section className="video-call-panel">
+            <header className="video-call-heading">
+              <div><p className="eyebrow">ALTA CHAT · PRIVATE CALL</p><h2>{peerName}</h2></div>
+              <span className={`video-call-state ${callStatus}`} aria-live="polite">
+                {callStatus === "incoming" ? "Incoming call" : callStatus === "calling" ? "Calling…" : callStatus === "connected" ? "Connected" : "Connecting…"}
+              </span>
+            </header>
+            <div className="video-call-stage">
+              <video ref={remoteVideoRef} className="video-call-remote" autoPlay playsInline />
+              {!remoteStream && (
+                <div className="video-call-placeholder">
+                  <span>{peerName.slice(0, 2).toUpperCase()}</span>
+                  <strong>{callStatus === "incoming" ? "Incoming video call" : callStatus === "calling" ? "Waiting for answer" : "Connecting video"}</strong>
+                  <small>{callStatus === "incoming" ? "Accept to turn on your camera and microphone" : "Your video will appear here when the other person joins"}</small>
+                </div>
+              )}
+              {localStream && <video ref={localVideoRef} className="video-call-local" autoPlay muted playsInline />}
+            </div>
+            <footer className="video-call-controls">
+              {callStatus === "incoming" ? (
+                <>
+                  <button type="button" className="video-call-accept" onClick={() => void acceptIncomingCall()}>Accept video</button>
+                  <button type="button" className="video-call-end" onClick={() => cleanupCall("reject")}>Decline</button>
+                </>
+              ) : (
+                <>
+                  <button type="button" className="video-call-control" onClick={toggleMicrophone} disabled={!localStream}>{micMuted ? "Unmute" : "Mute"}</button>
+                  <button type="button" className="video-call-control" onClick={toggleCamera} disabled={!localStream}>{cameraOff ? "Turn camera on" : "Camera off"}</button>
+                  <button type="button" className="video-call-end" onClick={() => cleanupCall("hangup")}>End call</button>
+                </>
+              )}
+            </footer>
+            <p className="video-call-footnote">Calls use a direct browser connection. Video and audio are not saved to Alta Chat.</p>
+          </section>
+        </div>
+      )}
 
       {infoOpen && room?.type === "group" && (
         <div className="group-info-overlay" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setInfoOpen(false); }}>
