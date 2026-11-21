@@ -1409,3 +1409,15 @@ a { color: #8eb7ed; }
     padding: 8px 11px;
   }
 }
+
+/* Inbox takes the full content area after removing the empty workspace panel. */
+@media (min-width: 901px) {
+  .inbox-screen {
+    grid-template-columns: 72px minmax(0, 1fr) !important;
+  }
+  .desktop-inbox-panel {
+    grid-column: 2;
+    width: 100%;
+    min-width: 0;
+  }
+}
