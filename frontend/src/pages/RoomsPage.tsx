@@ -261,18 +261,6 @@ export default function RoomsPage() {
         <Link to="/profile">◌<span>Profile</span></Link>
       </footer>
       </section>
-      <section className="desktop-workspace" aria-label="Conversation workspace">
-        <div className="workspace-topline">
-          <div><p className="eyebrow">WORKSPACE</p><h2>Messages</h2></div>
-          <span className="workspace-secure"><span className="secure-dot" /> End-to-end encrypted</span>
-        </div>
-        <div className="workspace-welcome">
-          <div className="workspace-empty-icon" aria-hidden="true">▤</div>
-          <p className="eyebrow">ALTA CHAT</p>
-          <h2>Select a conversation</h2>
-          <p>Choose a thread from your inbox to view messages and continue the conversation.</p>
-        </div>
-      </section>
 
       {groupOpen && (
         <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget && !saving) setGroupOpen(false); }}>
