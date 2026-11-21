@@ -1421,3 +1421,32 @@ a { color: #8eb7ed; }
     min-width: 0;
   }
 }
+
+
+/* Compact conversation history: show more messages without reducing readability. */
+.chat .messages {
+  gap: 8px;
+  padding-block: 16px;
+}
+.chat .messages .bubble {
+  padding: 8px 13px;
+  border-radius: 11px;
+}
+.chat .messages .bubble p {
+  margin-top: 2px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.chat .messages .bubble .muted {
+  font-size: 10px;
+}
+@media (min-width: 901px) {
+  .chat .messages { gap: 7px; padding-block: 14px; }
+  .chat .messages .bubble { max-width: min(78%, 1100px); padding: 8px 14px; }
+  .chat .messages .bubble p { font-size: 14px; line-height: 1.42; }
+}
+@media (max-width: 640px) {
+  .chat .messages { gap: 7px; padding-block: 10px 14px; }
+  .chat .messages .bubble { padding: 7px 10px; }
+  .chat .messages .bubble p { font-size: 13.5px; line-height: 1.4; }
+}
