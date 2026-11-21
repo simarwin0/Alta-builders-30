@@ -1118,3 +1118,294 @@ a { color: #8eb7ed; }
   border-radius: 10px;
   background: #141f29;
 }
+
+
+/* WhatsApp Web-style full-width conversation workspace */
+@media (min-width: 901px) {
+  .chat.screen {
+    width: calc(100% - 20px);
+    max-width: none;
+    height: calc(100dvh - 20px);
+    min-height: 640px;
+    margin: 10px auto;
+    border-radius: 14px;
+  }
+  .chat-room-bar {
+    min-height: 74px;
+    padding-inline: clamp(24px, 3vw, 56px);
+  }
+  .messages {
+    width: 100%;
+    min-height: 0;
+    padding: 26px clamp(28px, 5.5vw, 110px);
+    gap: 14px;
+  }
+  .messages .bubble {
+    max-width: min(82%, 1240px);
+    padding: 14px 19px;
+  }
+  .messages .bubble p { font-size: 15.5px; line-height: 1.65; }
+  .composer {
+    width: 100%;
+    padding: 15px clamp(22px, 3.5vw, 64px);
+    gap: 12px;
+  }
+  .composer input {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    min-height: 58px;
+    padding: 15px 22px;
+    border-radius: 13px;
+    font-size: 15px;
+  }
+  .composer button {
+    flex: 0 0 104px;
+    min-width: 104px;
+    min-height: 48px;
+    border-radius: 11px;
+  }
+}
+@media (min-width: 1440px) {
+  .chat.screen { width: calc(100% - 28px); }
+  .messages { padding-inline: clamp(110px, 8vw, 190px); }
+  .messages .bubble { max-width: min(80%, 1320px); }
+  .composer { padding-inline: clamp(70px, 6vw, 130px); }
+}
+@media (min-width: 641px) and (max-width: 900px) {
+  .chat.screen {
+    width: calc(100% - 20px);
+    height: calc(100dvh - 20px);
+    min-height: 600px;
+    margin: 10px auto;
+  }
+  .messages { padding: 20px clamp(18px, 3vw, 34px); }
+  .messages .bubble { max-width: 88%; }
+  .composer { width: 100%; padding: 12px 18px; }
+  .composer input { flex: 1 1 auto; width: 100%; min-width: 0; min-height: 52px; }
+}
+
+/* Video calling */
+.video-call-button {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 40px;
+  padding: 8px 15px;
+  border: 1px solid #3d5b7b;
+  border-radius: 10px;
+  color: #c9def8;
+  background: #1a2b3d;
+  box-shadow: none;
+}
+.video-call-button:hover:not(:disabled) {
+  border-color: #7095c0;
+  color: #fff;
+  background: #243c55;
+  box-shadow: none;
+  transform: none;
+}
+.video-call-button:disabled { opacity: .55; }
+.video-call-button > span:first-child { font-size: 17px; line-height: 1; }
+
+.video-call-overlay {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  overflow-y: auto;
+  background: rgba(3, 8, 14, .92);
+  backdrop-filter: blur(12px);
+}
+.video-call-panel {
+  display: flex;
+  width: min(100%, 1120px);
+  max-height: min(94dvh, 1040px);
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid #344455;
+  border-radius: 16px;
+  color: #e8edf3;
+  background: #111a23;
+  box-shadow: 0 28px 80px rgba(0,0,0,.5);
+}
+.video-call-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.video-call-heading .eyebrow {
+  margin: 0 0 5px;
+  color: #93a6ba;
+  font-size: 10px;
+  letter-spacing: .12em;
+}
+.video-call-heading h2 {
+  margin: 0;
+  color: #edf2f7;
+  font-size: 20px;
+  font-weight: 620;
+  letter-spacing: -.025em;
+}
+.video-call-state {
+  flex: none;
+  padding: 7px 11px;
+  border: 1px solid #344657;
+  border-radius: 100px;
+  color: #b4c9df;
+  background: #172635;
+  font-size: 12px;
+  font-weight: 600;
+}
+.video-call-state.connected {
+  border-color: #315e50;
+  color: #a8dfc9;
+  background: #162b27;
+}
+.video-call-state.incoming {
+  border-color: #45658a;
+  color: #c8def9;
+  background: #1b2b3d;
+}
+.video-call-stage {
+  position: relative;
+  display: grid;
+  min-height: 300px;
+  max-height: 68dvh;
+  flex: 1 1 auto;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid #283644;
+  border-radius: 13px;
+  background: #070c12;
+}
+.video-call-remote {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #070c12;
+}
+.video-call-placeholder {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  max-width: 80%;
+  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px;
+  color: #dfe8f2;
+  text-align: center;
+  pointer-events: none;
+}
+.video-call-placeholder > span {
+  display: grid;
+  width: 76px;
+  height: 76px;
+  place-items: center;
+  border: 1px solid #40556b;
+  border-radius: 50%;
+  color: #d0e2f7;
+  background: #24374a;
+  font-size: 23px;
+  font-weight: 650;
+}
+.video-call-placeholder strong { font-size: 16px; font-weight: 600; }
+.video-call-placeholder small { color: #92a2b2; font-size: 12px; line-height: 1.5; }
+.video-call-local {
+  position: absolute;
+  z-index: 2;
+  right: 16px;
+  bottom: 16px;
+  width: min(27%, 270px);
+  aspect-ratio: 16 / 10;
+  border: 1px solid #64788d;
+  border-radius: 11px;
+  object-fit: cover;
+  background: #111a23;
+  box-shadow: 0 8px 25px rgba(0,0,0,.4);
+}
+.video-call-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.video-call-control, .video-call-accept, .video-call-end {
+  min-width: 104px;
+  min-height: 44px;
+  border-radius: 10px;
+  box-shadow: none;
+}
+.video-call-control {
+  border: 1px solid #3a4b5d;
+  color: #d7e1eb;
+  background: #1a2733;
+}
+.video-call-control:hover:not(:disabled) {
+  border-color: #607891;
+  color: #fff;
+  background: #243545;
+  box-shadow: none;
+  transform: none;
+}
+.video-call-accept {
+  border-color: #39765f;
+  color: #effaf5;
+  background: #28664d;
+}
+.video-call-accept:hover:not(:disabled) { border-color: #63a78b; background: #317b5d; }
+.video-call-end {
+  border-color: #87444b;
+  color: #fff3f4;
+  background: #873d46;
+}
+.video-call-end:hover:not(:disabled) { border-color: #b35d67; background: #9a4651; }
+.video-call-footnote {
+  margin: -3px 0 0;
+  color: #7f8f9e;
+  font-size: 11px;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .chat-room-bar { gap: 8px; }
+  .video-call-button {
+    min-width: 40px;
+    width: 42px;
+    height: 40px;
+    padding: 0;
+    gap: 0;
+  }
+  .video-call-label { display: none; }
+  .video-call-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .video-call-panel {
+    width: 100%;
+    max-height: 96dvh;
+    gap: 13px;
+    padding: 16px 12px max(14px, env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+    border-bottom: 0;
+  }
+  .video-call-stage { min-height: 240px; max-height: 62dvh; }
+  .video-call-local { right: 10px; bottom: 10px; width: 31%; }
+  .video-call-controls { gap: 8px; }
+  .video-call-control, .video-call-accept, .video-call-end {
+    min-width: 90px;
+    min-height: 42px;
+    padding: 8px 11px;
+  }
+}
