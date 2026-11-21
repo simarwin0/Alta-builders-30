@@ -703,3 +703,42 @@ The system runs predominantly flat. Elevation is reserved for two interaction la
 - Animation/transition timings are not extracted; recommend 150–250ms ease-out for primary surface transitions and 300ms ease-in-out for accordion expand/collapse.
 - Specific dark-mode token values for canvas, surface, ink, and hairline are not defined; the brand has not surfaced a published dark-mode token set on these commerce pages.
 - Pastel decorative tints inside accessory cards (soft pink, ice blue, mint) appear visually but are not formalized — treat them as photographic content, not as system colors.
+
+
+---
+
+# Active Alta Chat theme — Obsidian Pulse
+
+The production interface now uses **Obsidian Pulse**, a distinct dark messaging theme layered over the imported Meta design reference. The Meta preset remains documented above for provenance, but the active app palette is the one below.
+
+## Visual direction
+
+- **Canvas:** near-black graphite with subdued deep-blue undertones.
+- **Panels:** layered charcoal/slate surfaces to separate the navigation rail, inbox, conversation area and floating dialogs.
+- **Accent:** luminous mint/teal used for primary actions, unread counts, active navigation, online indicators and the sender's message surface.
+- **Typography:** system/Inter stack; bright cool-white primary text, softened blue-gray secondary text.
+- **Geometry:** rounded conversation cards and message bubbles, capsule-shaped actions and search, restrained borders rather than heavy shadows.
+- **Depth:** subtle radial lighting around the welcome workspace, thin separators and small elevation on modal/popover surfaces.
+- **Accessibility:** bright focus rings, readable muted text, minimum 44px touch controls and reduced-motion support.
+
+## Component rules
+
+- The inbox stays a three-panel messenger on desktop and collapses to a single-column inbox on phones.
+- Sent messages use mint surfaces with dark text; received messages use charcoal surfaces with light text.
+- The composer remains visible and touch-friendly at the bottom of the chat screen.
+- Keep all existing labels, routes, forms, notification actions, room controls, encryption and API behavior unchanged.
+- Do not use the Meta proprietary Optimistic VF font or copy Meta marks. Retain the app's existing system font stack.
+
+## Theme tokens
+
+| Token | Value |
+|---|---|
+| Canvas | `#080F15` |
+| Main panel | `#101B24` |
+| Raised surface | `#16242E` |
+| Primary text | `#EAF4F5` |
+| Secondary text | `#9AAEB7` |
+| Accent mint | `#45E6C1` |
+| Accent deep | `#0E9F82` |
+| Divider | `rgba(174, 202, 211, 0.13)` |
+| Error | `#FF8797` |
