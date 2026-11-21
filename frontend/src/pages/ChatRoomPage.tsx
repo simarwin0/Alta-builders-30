@@ -125,6 +125,8 @@ export default function ChatRoomPage() {
   const activeCallIdRef = useRef<string | null>(null);
   const peerUserIdRef = useRef<string | null>(null);
   const pendingIceRef = useRef<RTCIceCandidateInit[]>([]);
+  const pendingLocalIceRef = useRef<RTCIceCandidateInit[]>([]);
+  const localDescriptionSentRef = useRef(false);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
@@ -524,6 +526,12 @@ export default function ChatRoomPage() {
     return true;
   }
 
+  function flushLocalIce(callId: string, targetUserId: string) {
+    localDescriptionSentRef.current = true;
+    const pending = pendingLocalIceRef.current.splice(0);
+    for (const candidate of pending) sendCallSignal("ice", callId, targetUserId, { candidate });
+  }
+
   function cleanupCall(signalKind?: "hangup" | "reject") {
     const callId = activeCallIdRef.current;
     const targetUserId = peerUserIdRef.current;
@@ -544,6 +552,8 @@ export default function ChatRoomPage() {
     activeCallIdRef.current = null;
     peerUserIdRef.current = null;
     pendingIceRef.current = [];
+    pendingLocalIceRef.current = [];
+    localDescriptionSentRef.current = false;
     setLocalStream(null);
     setRemoteStream(null);
     setIncomingCall(null);
@@ -571,7 +581,10 @@ export default function ChatRoomPage() {
     const connection = new RTCPeerConnection({ iceServers: getCallIceServers() });
     peerConnectionRef.current = connection;
     connection.onicecandidate = (event) => {
-      if (event.candidate) sendCallSignal("ice", callId, targetUserId, { candidate: event.candidate.toJSON() });
+      if (!event.candidate) return;
+      const candidate = event.candidate.toJSON();
+      if (localDescriptionSentRef.current) sendCallSignal("ice", callId, targetUserId, { candidate });
+      else pendingLocalIceRef.current.push(candidate);
     };
     connection.ontrack = (event) => {
       const stream = event.streams[0] ?? new MediaStream([event.track]);
@@ -658,6 +671,8 @@ export default function ChatRoomPage() {
       const callId = crypto.randomUUID();
       activeCallIdRef.current = callId;
       pendingIceRef.current = [];
+      pendingLocalIceRef.current = [];
+      localDescriptionSentRef.current = false;
       updateCallStatus("calling");
       const stream = await requestLocalMedia();
       const connection = createPeerConnection(callId, peerUserId);
@@ -667,6 +682,7 @@ export default function ChatRoomPage() {
       if (!sendCallSignal("offer", callId, peerUserId, { sdp: connection.localDescription?.toJSON() })) {
         throw new Error("The calling connection was interrupted before the call could start.");
       }
+      flushLocalIce(callId, peerUserId);
     } catch (err) {
       setError((err as Error).message || "Could not start the video call. Check your camera and microphone permissions.");
       cleanupCall();
@@ -681,6 +697,8 @@ export default function ChatRoomPage() {
       const socket = socketRef.current ?? getSocket();
       socketRef.current = socket;
       await waitForSocket(socket);
+      pendingLocalIceRef.current = [];
+      localDescriptionSentRef.current = false;
       const stream = await requestLocalMedia();
       const connection = createPeerConnection(pending.callId, targetUserId);
       await connection.setRemoteDescription(new RTCSessionDescription(pending.sdp));
@@ -693,6 +711,7 @@ export default function ChatRoomPage() {
       if (!sendCallSignal("answer", pending.callId, targetUserId, { sdp: connection.localDescription?.toJSON() })) {
         throw new Error("The calling connection was interrupted before the call could be answered.");
       }
+      flushLocalIce(pending.callId, targetUserId);
     } catch (err) {
       setError((err as Error).message || "Could not answer the video call.");
       cleanupCall("reject");
@@ -747,6 +766,8 @@ export default function ChatRoomPage() {
       activeCallIdRef.current = null;
       peerUserIdRef.current = null;
       pendingIceRef.current = [];
+      pendingLocalIceRef.current = [];
+      localDescriptionSentRef.current = false;
       if (socketRef.current === socket) socketRef.current = null;
     };
   }, [roomId, room?.type, peerUserId]);
