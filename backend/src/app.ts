@@ -28,6 +28,26 @@ const authLimiter = rateLimit({
   message: { error: "Too many login or signup attempts. Please try again later." },
 });
 
+// Allow the configured canonical origin and only this Vercel project's own
+// production/preview hostnames. Vercel preview deployments use unique hostnames;
+// without this project-scoped pattern the strict CSRF guard rejects their POSTs.
+export function isTrustedClientOrigin(origin: string): boolean {
+  if (origin === config.clientOrigin) return true;
+  try {
+    const parsed = new URL(origin);
+    if (parsed.protocol !== "https:" || parsed.origin !== origin) return false;
+    const host = parsed.hostname.toLowerCase();
+    if (host === "alta-chat-frontend.vercel.app"
+      || host === "alta-chat-frontend-indermohanluthra97752-9682.vercel.app"
+      || host === "alta-chat-frontend-git-main-indermohanluthra97752-9682.vercel.app") {
+      return true;
+    }
+    return /^alta-chat-frontend-[a-z0-9-]+-indermohanluthra97752-9682\.vercel\.app$/.test(host);
+  } catch {
+    return false;
+  }
+}
+
 export function createApp() {
   const app = express();
   app.disable("x-powered-by");
@@ -40,14 +60,20 @@ export function createApp() {
 
   // The API does not serve HTML, so CSP is configured at the frontend/reverse proxy.
   app.use(helmet({ contentSecurityPolicy: false, strictTransportSecurity: config.env === "production" ? undefined : false }));
-  app.use(cors({ origin: config.clientOrigin, credentials: true }));
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, false);
+      return callback(null, isTrustedClientOrigin(origin) ? origin : false);
+    },
+    credentials: true,
+  }));
   app.use(express.json({ limit: "64kb" }));
 
   // SameSite cookies plus an Origin allowlist protect cookie-authenticated writes from CSRF.
   app.use("/api", (req, res, next) => {
     if (["POST", "PUT", "PATCH", "DELETE"].includes(req.method)) {
       const origin = req.get("origin");
-      if ((origin && origin !== config.clientOrigin) || (config.env === "production" && !origin)) {
+      if ((origin && !isTrustedClientOrigin(origin)) || (config.env === "production" && !origin)) {
         return res.status(403).json({ error: "Request origin is not allowed" });
       }
     }

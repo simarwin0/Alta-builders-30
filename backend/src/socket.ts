@@ -1,6 +1,7 @@
 import type { Server as HttpServer } from "http";
 import { Server } from "socket.io";
 import { config } from "./config.js";
+import { isTrustedClientOrigin } from "./app.js";
 import { readCookie, SESSION_COOKIE, verifyToken } from "./middleware/auth.js";
 import { createEncryptedMessage } from "./models/message.js";
 import { markRead } from "./models/room.js";
@@ -43,7 +44,13 @@ function allowUserEvent(userId: string, name: string, max: number, windowMs: num
 
 export function attachSocket(httpServer: HttpServer) {
   const io = new Server(httpServer, {
-    cors: { origin: config.clientOrigin, credentials: true },
+    cors: {
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, false);
+        return callback(null, isTrustedClientOrigin(origin) ? origin : false);
+      },
+      credentials: true,
+    },
     allowRequest: (req, callback) => {
       const origin = req.headers.origin;
       const address = req.socket.remoteAddress ?? "unknown";
@@ -53,7 +60,7 @@ export function attachSocket(httpServer: HttpServer) {
       // expiry and session-version before the socket can connect.
       const hasSessionCookie = Boolean(readCookie(req.headers.cookie, SESSION_COOKIE));
       const originAllowed = origin
-        ? origin === config.clientOrigin
+        ? isTrustedClientOrigin(origin)
         : config.env !== "production" || hasSessionCookie;
       callback(null, originAllowed && allowHandshake(address));
     },
