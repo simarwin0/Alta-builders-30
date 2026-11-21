@@ -663,29 +663,37 @@ export default function ChatRoomPage() {
   async function startVideoCall() {
     if (!peerUserId || callStatusRef.current !== "idle") return;
     setError("");
-    peerUserIdRef.current = peerUserId;
+    const targetUserId = peerUserId;
+    const callId = crypto.randomUUID();
+    peerUserIdRef.current = targetUserId;
+    activeCallIdRef.current = callId;
+    pendingIceRef.current = [];
+    pendingLocalIceRef.current = [];
+    localDescriptionSentRef.current = false;
+    updateCallStatus("calling");
     try {
       const socket = getSocket();
       socketRef.current = socket;
       await waitForSocket(socket);
-      const callId = crypto.randomUUID();
-      activeCallIdRef.current = callId;
-      pendingIceRef.current = [];
-      pendingLocalIceRef.current = [];
-      localDescriptionSentRef.current = false;
-      updateCallStatus("calling");
+      if (activeCallIdRef.current !== callId) return;
       const stream = await requestLocalMedia();
-      const connection = createPeerConnection(callId, peerUserId);
+      if (activeCallIdRef.current !== callId) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      const connection = createPeerConnection(callId, targetUserId);
       stream.getTracks().forEach((track) => connection.addTrack(track, stream));
       const offer = await connection.createOffer();
       await connection.setLocalDescription(offer);
-      if (!sendCallSignal("offer", callId, peerUserId, { sdp: connection.localDescription?.toJSON() })) {
+      if (!sendCallSignal("offer", callId, targetUserId, { sdp: connection.localDescription?.toJSON() })) {
         throw new Error("The calling connection was interrupted before the call could start.");
       }
-      flushLocalIce(callId, peerUserId);
+      flushLocalIce(callId, targetUserId);
     } catch (err) {
-      setError((err as Error).message || "Could not start the video call. Check your camera and microphone permissions.");
-      cleanupCall();
+      if (activeCallIdRef.current === callId) {
+        setError((err as Error).message || "Could not start the video call. Check your camera and microphone permissions.");
+        cleanupCall();
+      }
     }
   }
 
@@ -693,28 +701,35 @@ export default function ChatRoomPage() {
     const pending = incomingCall;
     const targetUserId = pending?.fromUserId;
     if (!pending || !targetUserId || callStatusRef.current !== "incoming") return;
+    updateCallStatus("connecting");
+    setIncomingCall(null);
     try {
       const socket = socketRef.current ?? getSocket();
       socketRef.current = socket;
       await waitForSocket(socket);
+      if (activeCallIdRef.current !== pending.callId) return;
       pendingLocalIceRef.current = [];
       localDescriptionSentRef.current = false;
       const stream = await requestLocalMedia();
+      if (activeCallIdRef.current !== pending.callId) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       const connection = createPeerConnection(pending.callId, targetUserId);
       await connection.setRemoteDescription(new RTCSessionDescription(pending.sdp));
       await flushPendingIce(connection);
       stream.getTracks().forEach((track) => connection.addTrack(track, stream));
       const answer = await connection.createAnswer();
       await connection.setLocalDescription(answer);
-      setIncomingCall(null);
-      updateCallStatus("connecting");
       if (!sendCallSignal("answer", pending.callId, targetUserId, { sdp: connection.localDescription?.toJSON() })) {
         throw new Error("The calling connection was interrupted before the call could be answered.");
       }
       flushLocalIce(pending.callId, targetUserId);
     } catch (err) {
-      setError((err as Error).message || "Could not answer the video call.");
-      cleanupCall("reject");
+      if (activeCallIdRef.current === pending.callId) {
+        setError((err as Error).message || "Could not answer the video call.");
+        cleanupCall("reject");
+      }
     }
   }
 
