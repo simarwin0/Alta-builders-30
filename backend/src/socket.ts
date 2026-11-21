@@ -1,7 +1,7 @@
 import type { Server as HttpServer } from "http";
 import { Server } from "socket.io";
 import { config } from "./config.js";
-import { isTrustedClientOrigin } from "./app.js";
+import { isTrustedClientOrigin } from "./services/origin.js";
 import { readCookie, SESSION_COOKIE, verifyToken } from "./middleware/auth.js";
 import { createEncryptedMessage } from "./models/message.js";
 import { markRead } from "./models/room.js";
