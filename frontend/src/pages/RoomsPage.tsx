@@ -263,17 +263,15 @@ export default function RoomsPage() {
       </section>
       <section className="desktop-workspace" aria-label="Conversation workspace">
         <div className="workspace-topline">
-          <div><p className="eyebrow">YOUR WORKSPACE</p><h2>Stay connected.</h2></div>
+          <div><p className="eyebrow">WORKSPACE</p><h2>Messages</h2></div>
           <span className="workspace-secure"><span className="secure-dot" /> End-to-end encrypted</span>
         </div>
         <div className="workspace-welcome">
-          <div className="welcome-orbit"><span>✦</span><i /><b /></div>
-          <p className="eyebrow">WELCOME TO ALTA CHAT</p>
-          <h2>Your conversations,<br />in one calm space.</h2>
-          <p>Choose a conversation from the list to continue, or find someone new and start a private chat.</p>
-          <button type="button" onClick={() => document.querySelector<HTMLInputElement>(".inbox-search input")?.focus()}>Find someone <span>↗</span></button>
+          <div className="workspace-empty-icon" aria-hidden="true">▤</div>
+          <p className="eyebrow">ALTA CHAT</p>
+          <h2>Select a conversation</h2>
+          <p>Choose a thread from your inbox to view messages and continue the conversation.</p>
         </div>
-        <div className="workspace-foot"><span>PRIVATE BY DESIGN</span><span>BUILT FOR YOUR EVERYDAY</span></div>
       </section>
 
       {groupOpen && (
