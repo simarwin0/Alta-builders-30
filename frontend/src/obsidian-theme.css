@@ -1080,3 +1080,41 @@ a { color: #8eb7ed; }
   .composer input { min-height: 44px; font-size: 16px; }
   .composer button { min-width: 64px; min-height: 44px; }
 }
+
+
+/* Final detail pass */
+.workspace-empty-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 18px;
+  place-items: center;
+  border: 1px solid #344657;
+  border-radius: 12px;
+  color: #a9c8ef;
+  background: #1a2836;
+  font-size: 22px;
+}
+.workspace-welcome { max-width: 560px; }
+.workspace-welcome h2 { max-width: 560px; }
+.workspace-welcome > p:not(.eyebrow) { max-width: 460px; line-height: 1.65; }
+.auth {
+  border-color: #293541;
+  background: #111a23;
+  box-shadow: 0 16px 42px rgba(0,0,0,.22);
+}
+.auth::before { color: #9fc3ee; opacity: .72; }
+.auth h1 { color: #edf2f7; }
+.auth h1::before {
+  border: 1px solid #416b9d;
+  border-radius: 12px;
+  color: #fff;
+  background: #315b8d;
+  box-shadow: none;
+}
+.auth-status, .auth > button.link { color: #9fc3ee; }
+.remember-row {
+  border-color: #293541;
+  border-radius: 10px;
+  background: #141f29;
+}
