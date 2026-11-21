@@ -566,8 +566,16 @@ export default function ChatRoomPage() {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error("Video calling needs a secure browser connection and camera/microphone support.");
     }
+    // Ask the browser/OS audio pipeline to cancel speaker echo and suppress
+    // background noise. "ideal" keeps this compatible with devices that do
+    // not expose every processing control.
     const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
+      audio: {
+        echoCancellation: { ideal: true },
+        noiseSuppression: { ideal: true },
+        autoGainControl: { ideal: true },
+        channelCount: { ideal: 1 },
+      },
       video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
     });
     localStreamRef.current = stream;
@@ -750,7 +758,12 @@ export default function ChatRoomPage() {
   }, [localStream, callStatus]);
 
   useEffect(() => {
-    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream;
+    const video = remoteVideoRef.current;
+    if (!video) return;
+    video.srcObject = remoteStream;
+    // Explicitly resume remote playback when the peer's stream arrives;
+    // autoplay can otherwise remain paused after a late track event.
+    if (remoteStream) void video.play().catch(() => undefined);
   }, [remoteStream, callStatus]);
 
   useEffect(() => {
@@ -854,7 +867,7 @@ export default function ChatRoomPage() {
                 </>
               )}
             </footer>
-            <p className="video-call-footnote">Calls use a direct browser connection. Video and audio are not saved to Alta Chat.</p>
+            <p className="video-call-footnote">Echo cancellation, noise suppression and automatic mic-level control are enabled where supported. Headphones provide the best echo-free audio. Calls use a direct browser connection; video and audio are not saved to Alta Chat.</p>
           </section>
         </div>
       )}
