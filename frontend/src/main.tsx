@@ -6,6 +6,7 @@ import "./styles.css";
 import "./meta-design.css";
 import "./obsidian-theme.css";
 import "./professional-theme.css";
+import "./reference-chat-theme.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
