@@ -2,7 +2,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
 import { cacheRoomKey, clearRoomKeyCache, createInvitationToken, createRoomKey, decryptRoomMetadata, decryptRoomText, encryptInvitationLabel, encryptRoomMetadataWithKey, encryptRoomText, unwrapRoomKey, wrapRoomKeyForUser } from "../crypto";
-import type { Message, RoomDetails } from "../types";
+import type { Message, Room, RoomDetails } from "../types";
 import { getSocket } from "../socket";
 
 function getRoomDisplayName(details: RoomDetails, encryptedName: string): string {
@@ -63,6 +63,102 @@ const MessageBubble = memo(function MessageBubble({ message, isMine }: { message
     </div>
   );
 });
+
+function ChatSidebar({ activeRoomId }: { activeRoomId: string }) {
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [query, setQuery] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    const loadRooms = async () => {
+      try {
+        const records = await api<Room[]>("/rooms");
+        const unlocked = await Promise.all(records.map(async (room) => {
+          try {
+            for (const envelope of room.key_envelopes) {
+              await unwrapRoomKey(room.id, envelope.wrapped_key, envelope.key_version);
+            }
+            if (room.type === "direct" && room.direct_peer_name) {
+              return { ...room, name: room.direct_peer_name };
+            }
+            const metadata = await decryptRoomMetadata(
+              room.id,
+              room.encrypted_metadata,
+              room.current_key_version,
+            );
+            return { ...room, name: metadata.name };
+          } catch {
+            return { ...room, name: room.type === "direct" ? "Direct conversation" : "Encrypted group" };
+          }
+        }));
+        if (active) setRooms(unlocked);
+      } catch {
+        // The active conversation remains usable when the sidebar list cannot refresh.
+      }
+    };
+
+    void loadRooms();
+    const refresh = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadRooms();
+    }, 30000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void loadRooms();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      active = false;
+      window.clearInterval(refresh);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
+
+  const visibleRooms = rooms.filter((room) =>
+    (room.name ?? "").toLowerCase().includes(query.trim().toLowerCase()),
+  );
+
+  return (
+    <aside className="chat-sidebar" aria-label="Conversations">
+      <header className="chat-sidebar-top">
+        <div><p className="eyebrow">ALTA CHAT</p><h2>Messages</h2></div>
+        <Link className="chat-sidebar-create" to="/" aria-label="All conversations" title="All conversations">＋</Link>
+      </header>
+      <label className="chat-sidebar-search">
+        <span aria-hidden="true">⌕</span>
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search conversations" aria-label="Search conversations" />
+      </label>
+      <div className="chat-sidebar-section">
+        <span>RECENT CHATS</span>
+        <Link to="/">View all</Link>
+      </div>
+      <nav className="chat-sidebar-list">
+        {visibleRooms.map((room) => (
+          <Link
+            key={room.id}
+            to={`/rooms/${room.id}`}
+            className={`chat-sidebar-row ${room.id === activeRoomId ? "active" : ""}`}
+            aria-current={room.id === activeRoomId ? "page" : undefined}
+          >
+            <span className={`chat-sidebar-avatar ${room.type === "group" ? "group" : ""}`}>
+              {(room.name ?? "A").slice(0, 2).toUpperCase()}
+            </span>
+            <span className="chat-sidebar-copy">
+              <strong>{room.name ?? "Encrypted conversation"}</strong>
+              <small>{room.last_sender ? `${room.last_sender}: ` : ""}{room.last_content ?? "Start the conversation"}</small>
+            </span>
+            <span className="chat-sidebar-meta">
+              <time>{room.last_at ? new Date(room.last_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""}</time>
+              {room.unread > 0 && <b>{room.unread > 99 ? "99+" : room.unread}</b>}
+            </span>
+          </Link>
+        ))}
+        {visibleRooms.length === 0 && (
+          <p className="chat-sidebar-empty">{query ? "No matching conversations." : "Your conversations will appear here."}</p>
+        )}
+      </nav>
+      <footer className="chat-sidebar-footer"><span aria-hidden="true">⌑</span> End-to-end encrypted</footer>
+    </aside>
+  );
+}
 
 type PublicKeyResponse = { public_key: JsonWebKey };
 type UserLite = { id: string; username: string; status: "online" | "away" | "offline" };
@@ -802,7 +898,9 @@ export default function ChatRoomPage() {
 
   
   return (
-    <main className="screen chat">
+    <main className="screen chat chat-layout">
+      <ChatSidebar activeRoomId={roomId} />
+      <section className="chat-main-panel">
       <header className="bar chat-room-bar">
         <Link to="/">←</Link>
         <div className="chat-room-heading">
@@ -939,6 +1037,7 @@ export default function ChatRoomPage() {
           </section>
         </div>
       )}
+      </section>
     </main>
   );
 }
