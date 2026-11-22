@@ -742,3 +742,7 @@ The production interface now uses **Obsidian Pulse**, a distinct dark messaging 
 | Accent deep | `#0E9F82` |
 | Divider | `rgba(174, 202, 211, 0.13)` |
 | Error | `#FF8797` |
+
+
+## Cursor-inspired visual refinement (2026)
+Apply a warm, restrained editorial style without copying the code-editor product layout. Use a warm cream canvas (#f7f7f4), white surfaces, warm near-black ink (#26251e), body text (#5a5852), muted text (#807d72), subtle hairlines (#e6e5e0), and a single Cursor Orange accent (#f54e00). Use 8px control radii, 10–12px card radii, 4px spacing increments, and 140–180ms transitions. Keep the chat layout messaging-first: compact contact list, spacious conversation pane, incoming white/soft-grey bubbles, outgoing pale-peach bubbles, orange reserved for primary actions and small unread indicators. Avoid gradients, glass effects, heavy shadows, saturated green, and decorative code-editor motifs. Preserve all existing messaging, authentication, encryption, Socket.IO, notification and WebRTC behavior.
