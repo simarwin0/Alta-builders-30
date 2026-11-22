@@ -10,6 +10,11 @@ export function disconnectUserSockets(userId: string) {
   io?.in(`user:${userId}`).disconnectSockets(true);
 }
 
+/** Deliver a private event to every authenticated tab/device for one user. */
+export function emitUserEvent(userId: string, event: string, payload: unknown) {
+  io?.to("user:" + userId).emit(event, payload);
+}
+
 /**
  * Deliver room events to personal channels for the members currently recorded
  * in MongoDB. A stale Socket.IO room subscription is never treated as proof of

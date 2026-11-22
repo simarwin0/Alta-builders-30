@@ -2,16 +2,22 @@ import { io, type Socket } from "socket.io-client";
 
 let socket: Socket | null = null;
 
-// Vercel proxies /socket.io to the authenticated Railway API, so the default
-// is same-origin. An explicit VITE_SOCKET_URL can still be used for alternate deployments.
-const SOCKET_ORIGIN = (import.meta.env.VITE_SOCKET_URL || "").replace(/\/$/, "");
-
+/**
+ * Use the current site origin. Production Vercel rewrites /socket.io to Render;
+ * local Vite proxies the same path to localhost:4000.
+ * The HttpOnly session cookie remains first-party; no JWT is exposed to JS.
+ */
 export function getSocket(): Socket {
-  // The browser sends the HttpOnly session cookie; no JWT is exposed to JS.
   if (!socket) {
-    socket = io(SOCKET_ORIGIN || undefined, {
+    socket = io(undefined, {
       withCredentials: true,
       path: "/socket.io",
+      autoConnect: false,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 500,
+      reconnectionDelayMax: 5000,
+      timeout: 12000,
     });
   }
   return socket;

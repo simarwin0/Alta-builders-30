@@ -4,6 +4,7 @@ import { api } from "../api";
 import { cacheRoomKey, clearRoomKeyCache, createInvitationToken, createRoomKey, decryptRoomMetadata, decryptRoomText, encryptInvitationLabel, encryptRoomMetadataWithKey, encryptRoomText, unwrapRoomKey, wrapRoomKeyForUser } from "../crypto";
 import type { Message, Room, RoomDetails } from "../types";
 import { getSocket } from "../socket";
+import NotificationBell from "../components/NotificationBell";
 
 function getRoomDisplayName(details: RoomDetails, encryptedName: string): string {
   if (details.type === "direct") {
@@ -227,6 +228,7 @@ export default function ChatRoomPage() {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const bottom = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<Message[]>([]);
+  const roomTypeRef = useRef<RoomDetails["type"] | undefined>(undefined);
 
   async function fetchLatestRoomWithCurrentKey() {
     const latest = await api<RoomDetails>(`/rooms/${roomId}`);
@@ -243,6 +245,7 @@ export default function ChatRoomPage() {
   async function loadRoom() {
     try {
       const details = await api<RoomDetails>(`/rooms/${roomId}`);
+      roomTypeRef.current = details.type;
       // Rebuild this room's local key cache from this account's persisted envelopes.
       clearRoomKeyCache(roomId);
       for (const envelope of details.key_envelopes) {
@@ -277,6 +280,7 @@ export default function ChatRoomPage() {
         // Membership changes rotate the group's key. Refresh this member's
         // key envelope before decrypting messages encrypted with the new key.
         const details = await api<RoomDetails>(`/rooms/${roomId}`);
+        roomTypeRef.current = details.type;
         for (const envelope of details.key_envelopes) {
           await unwrapRoomKey(roomId, envelope.wrapped_key, envelope.key_version);
         }
@@ -335,9 +339,39 @@ export default function ChatRoomPage() {
         refreshInFlight = false;
       }
     };
+    let realtimeSocket: ReturnType<typeof getSocket> | null = null;
+    const onRealtimeMessage = (message: Message) => {
+      if (!active || !message || message.room_id !== roomId) return;
+      void decryptMessage(roomId, message, roomTypeRef.current).then((readable) => {
+        if (!active || messagesRef.current.some((item) => item.id === readable.id)) return;
+        const next = [...messagesRef.current, readable]
+          .sort((a, b) => a.created_at.localeCompare(b.created_at));
+        messagesRef.current = next;
+        setMessages(next);
+      }).catch(() => undefined);
+    };
+    const onRealtimeRoomUpdated = (payload: { roomId?: string }) => {
+      if (active && payload?.roomId === roomId && document.visibilityState === "visible") {
+        void refreshRoomAndMessages();
+      }
+    };
+    const onRealtimeConnect = () => {
+      if (active && navigator.onLine) void refreshRoomAndMessages();
+    };
+
     void (async () => {
       await loadRoom();
       if (!active) return;
+      try {
+        realtimeSocket = getSocket();
+        realtimeSocket.on("message:new", onRealtimeMessage);
+        realtimeSocket.on("room:updated", onRealtimeRoomUpdated);
+        realtimeSocket.on("connect", onRealtimeConnect);
+        realtimeSocket.connect();
+        if (realtimeSocket.connected) void refreshRoomAndMessages();
+      } catch {
+        // HTTP refresh remains available if Socket.IO cannot start.
+      }
       // Refresh membership and encryption envelopes along with the messages.
       const connection = (navigator as Navigator & {
         connection?: { saveData?: boolean; effectiveType?: string };
@@ -345,9 +379,8 @@ export default function ChatRoomPage() {
       const isConstrainedNetwork = Boolean(
         connection?.saveData || ["slow-2g", "2g"].includes(connection?.effectiveType ?? ""),
       );
-      const refreshInterval = isConstrainedNetwork
-        ? 20000
-        : window.matchMedia("(max-width: 640px)").matches ? 12000 : 8000;
+      // Socket.IO delivers messages immediately; this HTTP poll recovers missed events.
+      const refreshInterval = isConstrainedNetwork ? 45000 : 30000;
       poll = window.setInterval(() => {
         if (document.visibilityState === "visible") void refreshRoomAndMessages();
       }, refreshInterval);
@@ -362,6 +395,11 @@ export default function ChatRoomPage() {
     window.addEventListener("online", refreshWhenAvailable);
     return () => {
       active = false;
+      if (realtimeSocket) {
+        realtimeSocket.off("message:new", onRealtimeMessage);
+        realtimeSocket.off("room:updated", onRealtimeRoomUpdated);
+        realtimeSocket.off("connect", onRealtimeConnect);
+      }
       if (poll) window.clearInterval(poll);
       document.removeEventListener("visibilitychange", refreshWhenAvailable);
       window.removeEventListener("online", refreshWhenAvailable);
@@ -907,6 +945,7 @@ export default function ChatRoomPage() {
           <strong>{roomName}</strong>
           <small className="muted"> · end-to-end encrypted</small>
         </div>
+        <NotificationBell />
         {room?.type === "direct" && peerUserId && (
           <button type="button" className="video-call-button" onClick={() => void startVideoCall()} disabled={callStatus !== "idle"} aria-label={`Start video call with ${peerName}`}>
             <span aria-hidden="true">▣</span><span className="video-call-label">Video call</span>

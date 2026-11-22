@@ -2,6 +2,7 @@ import webpush from "web-push";
 import { config } from "../config.js";
 import { NotificationModel, PushSubscriptionModel } from "../models/notifications.js";
 import { RoomModel } from "../models/schemas.js";
+import { emitUserEvent } from "./realtime.js";
 
 const pushReady = Boolean(config.vapidPublicKey && config.vapidPrivateKey && config.vapidSubject);
 if (pushReady) {
@@ -22,6 +23,19 @@ export async function createNotification(input: NoticeInput) {
     user: input.userId, type: input.type, title: input.title, body: input.body,
     roomId: input.roomId ?? null, actorName: input.actorName ?? null,
   });
+
+  // Publish notification metadata only; encrypted message content stays client-side.
+  emitUserEvent(input.userId, "notification:new", {
+    id: String(notice._id),
+    type: input.type,
+    title: input.title,
+    body: input.body,
+    room_id: input.roomId ?? null,
+    actor_name: input.actorName ?? null,
+    read_at: null,
+    created_at: notice.createdAt,
+  });
+
   const subscriptions = pushReady ? await PushSubscriptionModel.find({ user: input.userId }).lean() : [];
   await Promise.all(subscriptions.map(async (subscription: any) => {
     try {

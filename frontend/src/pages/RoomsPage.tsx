@@ -4,6 +4,7 @@ import { api } from "../api";
 import { cacheRoomKey, clearRoomKeyCache, createRoomKey, decryptRoomMetadata, encryptRoomMetadataWithKey, getCurrentUserId, unwrapRoomKey, wrapRoomKeyForUser } from "../crypto";
 import type { Room } from "../types";
 import NotificationBell from "../components/NotificationBell";
+import { getSocket } from "../socket";
 
 type PublicKeyResponse = { public_key: JsonWebKey };
 type UserLite = { id: string; username: string; status: "online" | "away" | "offline" };
@@ -82,10 +83,17 @@ export default function RoomsPage() {
     void load();
     void api<{ role: string }>("/users/me").then((me) => setIsAdmin(me.role === "admin")).catch(() => setIsAdmin(false));
 
-    // Keep the inbox in sync over the same-origin authenticated HTTP API.
-    // This avoids a second, cross-site Socket.IO session that can fail when
-    // browsers block third-party cookies.
-    // Reduce background API traffic and catch up immediately when the user returns.
+    const socket = getSocket();
+    const refreshFromRealtime = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    socket.on("message:new", refreshFromRealtime);
+    socket.on("room:added", refreshFromRealtime);
+    socket.on("room:removed", refreshFromRealtime);
+    socket.on("room:updated", refreshFromRealtime);
+    socket.connect();
+
+    // Low-frequency HTTP fallback covers missed events and resumed tabs.
     const refresh = window.setInterval(() => {
       if (document.visibilityState === "visible") void load();
     }, 30000);
@@ -96,6 +104,10 @@ export default function RoomsPage() {
     return () => {
       window.clearInterval(refresh);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      socket.off("message:new", refreshFromRealtime);
+      socket.off("room:added", refreshFromRealtime);
+      socket.off("room:removed", refreshFromRealtime);
+      socket.off("room:updated", refreshFromRealtime);
     };
   }, []);
 

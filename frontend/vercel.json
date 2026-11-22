@@ -2,19 +2,19 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://alta-chat-backend-production.up.railway.app/api/:path*"
+      "destination": "https://alta-chat-backend.onrender.com/api/:path*"
     },
     {
       "source": "/socket.io",
-      "destination": "https://alta-chat-backend-production.up.railway.app/socket.io"
+      "destination": "https://alta-chat-backend.onrender.com/socket.io"
     },
     {
       "source": "/socket.io/",
-      "destination": "https://alta-chat-backend-production.up.railway.app/socket.io/"
+      "destination": "https://alta-chat-backend.onrender.com/socket.io/"
     },
     {
       "source": "/socket.io/:path*",
-      "destination": "https://alta-chat-backend-production.up.railway.app/socket.io/:path*"
+      "destination": "https://alta-chat-backend.onrender.com/socket.io/:path*"
     },
     {
       "source": "/(.*)",

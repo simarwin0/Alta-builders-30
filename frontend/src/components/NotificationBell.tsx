@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
+import { getSocket } from "../socket";
 
 type Notice = { id: string; type: string; title: string; body: string; room_id: string | null; read_at: string | null; created_at: string };
 
@@ -17,12 +18,14 @@ export default function NotificationBell() {
   const [pushEnabled, setPushEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const refreshInFlight = useRef(false);
+  const knownNotificationIds = useRef(new Set<string>());
 
   const refresh = useCallback(async () => {
     if (refreshInFlight.current) return;
     refreshInFlight.current = true;
     try {
       const result = await api<{ items: Notice[]; unread: number }>("/notifications");
+      knownNotificationIds.current = new Set(result.items.map((item) => item.id));
       setItems(result.items); setUnread(result.unread);
     } catch { /* Session may have expired; the app's auth guard handles it. */ }
     finally { refreshInFlight.current = false; }
@@ -30,6 +33,18 @@ export default function NotificationBell() {
 
   useEffect(() => {
     void refresh();
+    const socket = getSocket();
+    const onRealtimeNotification = (notice: Notice) => {
+      if (!notice?.id || knownNotificationIds.current.has(notice.id)) return;
+      knownNotificationIds.current.add(notice.id);
+      setItems((current) => [notice, ...current].slice(0, 50));
+      if (!notice.read_at) setUnread((current) => current + 1);
+    };
+    const onConnect = () => { void refresh(); };
+    socket.on("notification:new", onRealtimeNotification);
+    socket.on("connect", onConnect);
+    socket.connect();
+
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") void refresh();
     }, 30000);
@@ -40,6 +55,8 @@ export default function NotificationBell() {
     return () => {
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      socket.off("notification:new", onRealtimeNotification);
+      socket.off("connect", onConnect);
     };
   }, [refresh]);
 
