@@ -702,3 +702,27 @@ a { color: #8ebaff; }
     transition-duration: .01ms !important;
   }
 }
+
+
+/* Overlay geometry */
+.video-call-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.video-call-stage { display: grid; place-items: center; }
+.video-call-remote {
+  position: absolute;
+  inset: 0;
+  display: block;
+  object-fit: contain;
+}
+.video-call-placeholder { z-index: 1; }
+.video-call-local { z-index: 2; }
+@media (max-width: 640px) {
+  .video-call-overlay { padding: 10px; }
+}
